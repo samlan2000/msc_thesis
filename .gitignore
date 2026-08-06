@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Large generated satellite image cubes (regenerate via main_*.py)
+outputs_L3/images_campaigns/*.bsq
+outputs_L3/images_campaigns/*.img
+outputs_L3/images_campaigns/*.hdr
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
