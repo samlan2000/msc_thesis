@@ -2,8 +2,13 @@
 main_campaigns.py — Campaigns processing chain orchestrator
 ═════════════════════════════════════════════════════════════
 
-Links together the three stages of the campaigns station processing chain:
+Links together the four stages of the campaigns station processing chain:
 
+    0. download_ac             run eawag/sencast (Docker) to download raw
+                               satellite products and apply atmospheric
+                               correction, once per .ini file in
+                               CAMPAIGNS_SENCAST_PARAMS_DIR
+                               (processing_pre/run_sencast.py).
     1. pre_processing         convert campaign .nc satellite products to
                                band-restricted .bsq files
                                (processing_pre/bsqConverterPolymer.py).
@@ -44,6 +49,7 @@ sys.path.insert(0, str(PROCESSING_PRE_DIR))
 # ═══════════════════════════════════════════════════════════════════════
 # EXECUTION SWITCHES — set True/False to (re-)run individual stages
 # ═══════════════════════════════════════════════════════════════════════
+RUN_DOWNLOAD_AC = False
 RUN_PRE_PROCESSING = True
 RUN_PROCESSING_CAMPAIGNS = True
 RUN_IMAGE_PROCESSING = True
@@ -53,6 +59,14 @@ RUN_IMAGE_PROCESSING = True
 # EXTERNAL INPUT PATHS — anything NOT inside MSc_thesis_samuel.
 # Edit these to match your machine / data location.
 # ═══════════════════════════════════════════════════════════════════════
+
+# -- download_ac: sencast (Docker) install + scratch space + parameters --
+# SENCAST_DIR is the local sencast checkout (contains docker.ini) and is
+# the same across all main_*.py scripts. DIAS/params dirs are per-chain.
+SENCAST_DIR = r"C:\Users\samue\sencast"
+# changed to temp folder in order not to overwrite data
+CAMPAIGNS_DIAS_TEMP_DIR = r"C:\MSc_thesis_data\satellite\campaigns\temp"
+CAMPAIGNS_SENCAST_PARAMS_DIR = r"C:\Users\samue\sencast\parameters\campaigns"
 
 # -- pre_processing: campaign .nc -> band-restricted .bsq conversion --
 CAMPAIGNS_NC_INPUT_DIR = r"C:\MSc_thesis_data\satellite\campaigns\nc\output_data"
@@ -76,6 +90,18 @@ CAMPAIGNS_IMAGES_OUT_DIR = BASE_DIR / "outputs_L3" / "images_campaigns"
 # ═══════════════════════════════════════════════════════════════════════
 # Stage implementations
 # ═══════════════════════════════════════════════════════════════════════
+def run_download_ac():
+    """Download raw satellite products + atmospheric correction via sencast."""
+    print("\n" + "=" * 80)
+    print("STAGE 0/3 — download_ac")
+    print("=" * 80)
+
+    from run_sencast import run_sencast
+
+    os.makedirs(CAMPAIGNS_DIAS_TEMP_DIR, exist_ok=True)
+    run_sencast(SENCAST_DIR, CAMPAIGNS_DIAS_TEMP_DIR, CAMPAIGNS_SENCAST_PARAMS_DIR)
+
+
 def run_pre_processing():
     """Convert campaign .nc products to band-restricted .bsq files."""
     print("\n" + "=" * 80)
@@ -134,6 +160,8 @@ def _run_script(script_path: Path, env: dict):
 # Run
 # ═══════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    if RUN_DOWNLOAD_AC:
+        run_download_ac()
     if RUN_PRE_PROCESSING:
         run_pre_processing()
     if RUN_PROCESSING_CAMPAIGNS:

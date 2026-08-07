@@ -2,9 +2,14 @@
 main_thetis.py — Thetis processing chain orchestrator
 ════════════════════════════════════════════════════════
 
-Links together the four stages of the Thetis processing chain so that the
+Links together the five stages of the Thetis processing chain so that the
 whole pipeline — or any subset of it — can be (re-)run from one place:
 
+    0. download_ac           run eawag/sencast (Docker) to download raw
+                             satellite products and apply atmospheric
+                             correction, once per .ini file in
+                             THETIS_SENCAST_PARAMS_DIR
+                             (processing_pre/run_sencast.py).
     1. pre_processing       convert campaign satellite .nc products to
                              band-restricted .bsq files, then filter the
                              combined Thetis .bsq archive down to images
@@ -49,6 +54,7 @@ sys.path.insert(0, str(PROCESSING_PRE_DIR))
 # ═══════════════════════════════════════════════════════════════════════
 # EXECUTION SWITCHES — set True/False to (re-)run individual stages
 # ═══════════════════════════════════════════════════════════════════════
+RUN_DOWNLOAD_AC = False
 RUN_PRE_PROCESSING = False
 RUN_INSITU_INVERSION = False
 RUN_PROCESSING_THETIS = True
@@ -59,6 +65,13 @@ RUN_PLOTTING_THETIS = True
 # EXTERNAL INPUT PATHS — anything NOT inside MSc_thesis_samuel.
 # Edit these to match your machine / data location.
 # ═══════════════════════════════════════════════════════════════════════
+
+# -- download_ac: sencast (Docker) install + scratch space + parameters --
+# SENCAST_DIR is the local sencast checkout (contains docker.ini) and is
+# the same across all main_*.py scripts. DIAS/params dirs are per-chain.
+SENCAST_DIR = r"C:\Users\samue\sencast"
+THETIS_DIAS_TEMP_DIR = r"C:\MSc_thesis_data\satellite\thetis_combined\temp"
+THETIS_SENCAST_PARAMS_DIR = r"C:\Users\samue\sencast\parameters\thetis"
 
 # -- pre_processing: campaign .nc -> .bsq conversion (was batch_bsq_conversion.py) --
 # NOTE: the raw .nc products themselves live on an external hard drive (several
@@ -99,6 +112,18 @@ THETIS_PLOTS_DIR = OUTPUTS_L3_DIR / "plots_thetis"
 # ═══════════════════════════════════════════════════════════════════════
 # Stage implementations
 # ═══════════════════════════════════════════════════════════════════════
+def run_download_ac():
+    """Download raw satellite products + atmospheric correction via sencast."""
+    print("\n" + "=" * 80)
+    print("STAGE 0/4 — download_ac")
+    print("=" * 80)
+
+    from run_sencast import run_sencast
+
+    os.makedirs(THETIS_DIAS_TEMP_DIR, exist_ok=True)
+    run_sencast(SENCAST_DIR, THETIS_DIAS_TEMP_DIR, THETIS_SENCAST_PARAMS_DIR)
+
+
 def run_pre_processing():
     """Convert campaign .nc products to .bsq, then filter the combined
     Thetis .bsq archive down to images with a valid in-situ match-up."""
@@ -183,6 +208,8 @@ def _run_script(script_path: Path, env: dict):
 # Run
 # ═══════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    if RUN_DOWNLOAD_AC:
+        run_download_ac()
     if RUN_PRE_PROCESSING:
         run_pre_processing()
     if RUN_INSITU_INVERSION:

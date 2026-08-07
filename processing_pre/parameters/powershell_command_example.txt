@@ -1,0 +1,10 @@
+$paramFiles = Get-ChildItem "C:/Users/samue/sencast/parameters/*.ini"
+
+foreach ($file in $paramFiles) {
+    docker run -it --rm `
+        -v "C:/Users/samue/sencast:/sencast" `
+        -v "C:/MSc_thesis_data/satellite/campaigns/temp:/DIAS" `
+        eawag/sencast:latest `
+        -e /sencast/docker.ini `
+        -p "/sencast/parameters/$($file.Name)"
+}

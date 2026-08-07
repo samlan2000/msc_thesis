@@ -1,0 +1,21 @@
+FOR INFO ON HOW TO INSTALL SENCAST SEE https://sencast.readthedocs.io/en/latest/
+
+To download and process the images the "parameters" folder needs to be copied into a working sencast environment (into main "sencast" folder).
+The parameter files were generated using the generate_ini.py file that can be found in this folder.
+The main_x.py run a command like this:
+
+
+$paramFiles = Get-ChildItem "C:/Users/samue/sencast/parameters/*.ini" <------ change this to local path
+
+foreach ($file in $paramFiles) {
+    docker run -it --rm `
+        -v "C:/Users/samue/sencast:/sencast" `			      <------ change this to local path
+        -v "C:/MSc_thesis_data/satellite/campaigns/nc:/DIAS" ` 	      <------ change this to local path (output folder)
+        eawag/sencast:latest ` 					      <------ sencast version (might differ)
+        -e /sencast/docker.ini `
+        -p "/sencast/parameters/$($file.Name)"			      <------ assumes folder named "parameters"
+}
+
+
+Make sure to change the paths where needed in the main_x.py scripts!
+Note that L1 image downloading and AC may take up to 10 days for thetis.

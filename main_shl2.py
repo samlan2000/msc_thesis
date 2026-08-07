@@ -2,8 +2,13 @@
 main_shl2.py — SHL2 processing chain orchestrator
 ═══════════════════════════════════════════════════
 
-Links together the two stages of the SHL2 station processing chain:
+Links together the three stages of the SHL2 station processing chain:
 
+    0. download_ac         run eawag/sencast (Docker) to download raw
+                           satellite products and apply atmospheric
+                           correction, once per .ini file in
+                           SHL2_SENCAST_PARAMS_DIR
+                           (processing_pre/run_sencast.py).
     1. pre_processing     convert SHL2 satellite .nc products to
                            band-restricted .bsq files
                            (processing_pre/bsqConverterPolymer.py).
@@ -40,6 +45,7 @@ sys.path.insert(0, str(PROCESSING_PRE_DIR))
 # ═══════════════════════════════════════════════════════════════════════
 # EXECUTION SWITCHES — set True/False to (re-)run individual stages
 # ═══════════════════════════════════════════════════════════════════════
+RUN_DOWNLOAD_AC = False
 RUN_PRE_PROCESSING = True
 RUN_PROCESSING_SHL2 = True
 
@@ -48,6 +54,13 @@ RUN_PROCESSING_SHL2 = True
 # EXTERNAL INPUT PATHS — anything NOT inside MSc_thesis_samuel.
 # Edit these to match your machine / data location.
 # ═══════════════════════════════════════════════════════════════════════
+
+# -- download_ac: sencast (Docker) install + scratch space + parameters --
+# SENCAST_DIR is the local sencast checkout (contains docker.ini) and is
+# the same across all main_*.py scripts. DIAS/params dirs are per-chain.
+SENCAST_DIR = r"C:\Users\samue\sencast"
+SHL2_DIAS_TEMP_DIR = r"C:\MSc_thesis_data\satellite\shl2\temp"
+SHL2_SENCAST_PARAMS_DIR = r"C:\Users\samue\sencast\parameters\shl2"
 
 # -- pre_processing: SHL2 .nc -> band-restricted .bsq conversion --
 # NOTE: the individual per-acquisition product folders (each with L1P/ and
@@ -73,6 +86,18 @@ SHL2_PLOTS_DIR = BASE_DIR / "outputs_L3" / "plots_shl2"
 # ═══════════════════════════════════════════════════════════════════════
 # Stage implementations
 # ═══════════════════════════════════════════════════════════════════════
+def run_download_ac():
+    """Download raw satellite products + atmospheric correction via sencast."""
+    print("\n" + "=" * 80)
+    print("STAGE 0/2 — download_ac")
+    print("=" * 80)
+
+    from run_sencast import run_sencast
+
+    os.makedirs(SHL2_DIAS_TEMP_DIR, exist_ok=True)
+    run_sencast(SENCAST_DIR, SHL2_DIAS_TEMP_DIR, SHL2_SENCAST_PARAMS_DIR)
+
+
 def run_pre_processing():
     """Convert SHL2 .nc products to band-restricted .bsq files."""
     print("\n" + "=" * 80)
@@ -119,6 +144,8 @@ def _run_script(script_path: Path, env: dict):
 # Run
 # ═══════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    if RUN_DOWNLOAD_AC:
+        run_download_ac()
     if RUN_PRE_PROCESSING:
         run_pre_processing()
     if RUN_PROCESSING_SHL2:

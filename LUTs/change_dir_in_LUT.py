@@ -2,7 +2,7 @@ import os
 import pickle
 
 # Paths
-map_file = r"C:\Users\samue\OneDrive\Desktop\MSc_thesis_samuel\LUTs\date_to_file_map.pkl"
+map_file = r"C:\MSc_thesis_samuel\LUTs\date_to_file_map.pkl"
 new_data_dir = r"C:\MSc_thesis_data\insitu\thetis\thetis-multi-instrument-profiler\data\Level2_orig"
 
 # Load existing map
