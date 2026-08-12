@@ -234,25 +234,41 @@ cmap            = plt.cm.get_cmap("tab10", len(unique_stations))
 station_colors  = {st: cmap(i) for i, st in enumerate(unique_stations)}
 
 def draw_scatter_panel(ax, sat_A, ins_A, sta_A, sat_B, ins_B, sta_B,
-                       stats_combined, xlabel, ylabel):
-    """Scatter panel matching processing_shl2.py style."""
+                       stats_combined, xlabel, ylabel,
+                       color_by_station=True, plain_color="tab:green"):
+    """Scatter panel matching processing_shl2.py style.
+
+    color_by_station=True  -> one color per station (tab10), as before.
+    color_by_station=False -> all points in a single color (plain_color),
+                               same green used for CHL/CPHY elsewhere
+                               (e.g. processing_shl2.py's Plot 3).
+    """
 
     sat_all = np.concatenate([sat_A, sat_B])
     ins_all = np.concatenate([ins_A, ins_B])
     sta_all = np.concatenate([sta_A, sta_B])
 
     # ── data points ─────────────────────────────────────────────────────────
-    for st in unique_stations:
-        mask = sta_A == st
-        if mask.any():
-            ax.scatter(ins_A[mask], sat_A[mask],
-                       color=station_colors[st], marker="o", s=40, alpha=0.8)
+    if color_by_station:
+        for st in unique_stations:
+            mask = sta_A == st
+            if mask.any():
+                ax.scatter(ins_A[mask], sat_A[mask],
+                           color=station_colors[st], marker="o", s=40, alpha=0.8)
 
-    for st in unique_stations:
-        mask = sta_B == st
-        if mask.any():
-            ax.scatter(ins_B[mask], sat_B[mask],
-                       color=station_colors[st], marker="s", s=40, alpha=0.8)
+        for st in unique_stations:
+            mask = sta_B == st
+            if mask.any():
+                ax.scatter(ins_B[mask], sat_B[mask],
+                           color=station_colors[st], marker="s", s=40, alpha=0.8)
+    else:
+        st_A = compute_stats(sat_A, ins_A)
+        st_B = compute_stats(sat_B, ins_B)
+        ax.scatter(ins_A, sat_A, color=plain_color, marker="o", s=40,
+                   alpha=0.6, label=f"S3A N={st_A['n']}")
+        ax.scatter(ins_B, sat_B, color=plain_color, marker="s", s=40,
+                   alpha=0.6, label=f"S3B N={st_B['n']}")
+        ax.legend(fontsize=10, loc="upper left", framealpha=1)
 
     # ── axis limits ──────────────────────────────────────────────────────────
     fin = np.isfinite(ins_all) & np.isfinite(sat_all)
@@ -336,6 +352,36 @@ fig.legend(
 
 plt.tight_layout()
 plt.savefig(PLOTS_DIR / "campaigns_matchup.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+# ─────────────────────────────────────────────
+# Plot (plain) – same two-panel scatter, no per-station coloring
+# ─────────────────────────────────────────────
+fig2, axs2 = plt.subplots(1, 2, figsize=(11, 5))
+
+draw_scatter_panel(
+    axs2[0],
+    sat_A_phy, ins_A_phy, st_A_phy,
+    sat_B_phy, ins_B_phy, st_B_phy,
+    stats_phy["Combined"],
+    xlabel="CPHY$_{HPLC}$ [mg m$^{-3}$]",
+    ylabel="CPHY$_{S3}$ [mg m$^{-3}$]",
+    color_by_station=False,
+)
+
+draw_scatter_panel(
+    axs2[1],
+    sat_A_cx,  ins_A_cx,  st_A_cx,
+    sat_B_cx,  ins_B_cx,  st_B_cx,
+    stats_cx["Combined"],
+    xlabel="TSM [g m$^{-3}$]",
+    ylabel="NAP$_{S3}$ [g m$^{-3}$]",
+    color_by_station=False,
+    plain_color="tab:blue",
+)
+
+plt.tight_layout()
+plt.savefig(PLOTS_DIR / "campaigns_matchup_plain.png", dpi=150, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────

@@ -1,0 +1,8 @@
+# This file contains all the output directories where the processed data is stored by the main running script
+
+#### DO NOT CHANGE THE VARIABLE NAMES ####
+
+Level0_dir: "C:/thetis/thetis-multi-instrument-profiler/data/Level0/Processed/"
+Level1_dir: "C:/thetis/thetis-multi-instrument-profiler/data/Level1/"
+Level2_dir: "C:/thetis/thetis-multi-instrument-profiler/data/Level2/"
+Calibration_dir: "C:/thetis/thetis-multi-instrument-profiler/calibration/"

@@ -1,0 +1,2 @@
+These scripts were used to re-process the thetis L2 dataset to include hyperspectral absorption.
+To replicate, clone the thetis "LéXPLORE Thetis Vertical Profiler Depth Time Grid" repository (https://www.datalakes-eawag.ch/datadetail/802, accessed 7.8.2025), replace the scripts folder with this one and provide new empty Level 1 and Level 2 folders in place of the original ones.

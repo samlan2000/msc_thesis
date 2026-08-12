@@ -1,0 +1,22 @@
+name: geo
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - matplotlib
+  - scipy
+  - scikit-learn
+  - statsmodels
+  - xarray
+  - netCDF4
+  - rasterio
+  - spectral
+  - tqdm
+  - lmfit
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+      - openeo

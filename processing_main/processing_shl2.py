@@ -30,6 +30,7 @@ this script is run standalone.
 """
 
 import os
+import math
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -97,6 +98,15 @@ C_TO_BIOVOLUME = {
     for c, col in C_TO_ABUNDANCE.items()
 }
 
+# Biovolume-only in-situ groups with no model (C_x) or abundance counterpart
+# — no satellite retrieval or abundance equivalent exists, so these are only
+# ever added to the in-situ biovolume stacking, never to the abundance or
+# satellite-retrieved proportions.
+BIOVOL_EXTRA_TO_COL = {
+    "Chrysophyceae": "biovolume_chrysophyceae",
+}
+BIOVOL_TAXA = C_TAXA + list(BIOVOL_EXTRA_TO_COL.keys())
+
 GROUP_LABELS = {
     "C_0": "C$_0$ (bulk Chl-a)",
     "C_1": "C$_1$ – Cryptophyta",
@@ -104,6 +114,7 @@ GROUP_LABELS = {
     "C_3": "C$_3$ – Diatoms",
     "C_4": "C$_4$ – Dinoflagellates",
     "C_5": "C$_5$ – Green algae",
+    "Chrysophyceae": "Chrysophyceae",
 }
 
 # Colors for C_1-C_5 (used in the stacked-bar plot)
@@ -113,6 +124,7 @@ TAXA_COLORS = {
     "C_3": "#aaf7ff",
     "C_4": "#672f00",
     "C_5": "#5ae400",
+    "Chrysophyceae": "#ff8c00",
 }
 
 # Colors for C_0 … C_5 (used in the per-group scatter plot)
@@ -281,7 +293,10 @@ def paired_series(store):
     return t, sat, ins
 
 def compute_stats(x, y):
-    """Pearson r + two-sided p-value, plus bias/RMSE/MdSA."""
+    """x = satellite / retrieval, y = reference. Same convention/formula as
+    plotting_thetis.py's compute_stats: log10-ratio bias[%] / MdSA[%], RMSE,
+    Pearson r. Also returns a two-sided p-value (not part of plotting_thetis's
+    version, but kept here for the FDR significance summary further down)."""
     mask = np.isfinite(x) & np.isfinite(y)
     if mask.sum() < 2:
         return dict(r=np.nan, p=np.nan, bias=np.nan, rmse=np.nan, mdsa=np.nan, n=0)
@@ -291,28 +306,48 @@ def compute_stats(x, y):
         r, pval = (np.nan, np.nan)
     else:
         r, pval = pearsonr(x, y)
-    pos  = (x > 0) & (y > 0)
-    mdsa = float(100 * (np.exp(np.median(np.abs(np.log(y[pos] / x[pos])))) - 1)) if pos.sum() >= 1 else np.nan
-    return dict(r=r, p=pval, bias=float(np.mean(x - y)),
-                rmse=float(np.sqrt(mean_squared_error(y, x))), mdsa=mdsa, n=int(mask.sum()))
-
-def compute_stats_pct(x, y):
-    """Pearson r + log-ratio bias[%]/MdSA[%]/RMSE (used only for the 1:1 Chl-a plot)."""
-    mask = np.isfinite(x) & np.isfinite(y)
-    if mask.sum() < 2:
-        return dict(r=np.nan, bias=np.nan, rmse=np.nan, mdsa=np.nan, n=0)
-    x, y = x[mask], y[mask]
-    r, _ = pearsonr(x, y)
     pos = (x > 0) & (y > 0)
     if pos.sum() >= 1:
-        ratio = y[pos] / x[pos]
+        ratio = x[pos] / y[pos]
         MR = np.median(np.log10(ratio))
         bias = (10 ** np.abs(MR) - 1) * np.sign(MR) * 100
         mdsa = 100 * (np.exp(np.median(np.abs(np.log(ratio)))) - 1)
     else:
         bias, mdsa = np.nan, np.nan
-    return dict(r=r, bias=float(bias), rmse=float(np.sqrt(mean_squared_error(y, x))),
+    return dict(r=r, p=pval, bias=float(bias), rmse=float(np.sqrt(mean_squared_error(y, x))),
                 mdsa=float(mdsa), n=int(mask.sum()))
+
+def round_rmse(x):
+    """Round to two significant non-zero decimal places (matches plotting_thetis.py)."""
+    if not np.isfinite(x) or x == 0:
+        return x
+    first_sig = -int(math.floor(math.log10(abs(x))))
+    decimals = max(first_sig + 1, 0)
+    if x > 1:
+        decimals = 2
+    return round(x, decimals)
+
+_csv_rows = []  # accumulated CHL + phyto stats, saved to res_summary_shl2.csv at the end
+
+def log_stat(section, variable, satellite, st):
+    """Full metrics row (CHL): N, r, bias[%], RMSE, MdSA[%]."""
+    _csv_rows.append(dict(
+        section=section, variable=variable, satellite=satellite, N=st["n"],
+        r=round(st["r"], 2) if np.isfinite(st["r"]) else np.nan,
+        bias_pct=round(st["bias"], 1) if np.isfinite(st["bias"]) else np.nan,
+        RMSE=round_rmse(st["rmse"]) if np.isfinite(st["rmse"]) else np.nan,
+        MdSA_pct=round(st["mdsa"], 1) if np.isfinite(st["mdsa"]) else np.nan,
+    ))
+
+def log_stat_corr(section, variable, satellite, st):
+    """Correlation-only row (phyto abundance/biovolume): N, r, p-value.
+    No bias/RMSE/MdSA — not meaningful across the different units involved
+    (model concentration vs. cell counts / biovolume)."""
+    _csv_rows.append(dict(
+        section=section, variable=variable, satellite=satellite, N=st["n"],
+        r=round(st["r"], 2) if np.isfinite(st["r"]) else np.nan,
+        p=round(st["p"], 4) if np.isfinite(st["p"]) else np.nan,
+    ))
 
 # ─────────────────────────────────────────────
 # Extract arrays
@@ -495,9 +530,14 @@ date_splits = [bar_dates[i * split:(i + 1) * split] for i in range(N_BAR_ROWS)]
 t_splits    = [bar_t[i * split:(i + 1) * split] for i in range(N_BAR_ROWS)]
 
 # ── In-situ biovolume proportions ────────────────────────────────────────────
+# Includes BIOVOL_EXTRA_TO_COL groups (e.g. Chrysophyceae) alongside C_1-C_5 —
+# these have no satellite/abundance counterpart, so they only ever appear in
+# the in-situ biovolume proportions below.
+BIOVOL_TAXA_TO_COL = {**C_TO_BIOVOLUME, **BIOVOL_EXTRA_TO_COL}
+
 biovol = {}
-for c in C_TAXA:
-    bvol_col = C_TO_BIOVOLUME[c]
+for c in BIOVOL_TAXA:
+    bvol_col = BIOVOL_TAXA_TO_COL[c]
     biovol[c] = np.array([
         float(phyto_lookup.loc[d, bvol_col])
         if (d in phyto_lookup.index and bvol_col in phyto_lookup.columns)
@@ -505,9 +545,9 @@ for c in C_TAXA:
         for d in bar_dates
     ])
 
-biovol_total = sum(biovol[c] for c in C_TAXA)
+biovol_total = sum(biovol[c] for c in BIOVOL_TAXA)
 biovol_total = np.where(biovol_total == 0, np.nan, biovol_total)
-prop_insitu  = {c: biovol[c] / biovol_total for c in C_TAXA}
+prop_insitu  = {c: biovol[c] / biovol_total for c in BIOVOL_TAXA}
 
 # ── In-situ abundance proportions ────────────────────────────────────────────
 abund = {}
@@ -538,9 +578,9 @@ prop_A, has_A = retrieved_props("S3A", bar_dates)
 prop_B, has_B = retrieved_props("S3B", bar_dates)
 
 # ── Drawing helpers ───────────────────────────────────────────────────────────
-def draw_bar(ax, xi, props, i, hatch, alpha, edge="black"):
+def draw_bar(ax, xi, props, i, hatch, alpha, edge="black", taxa=C_TAXA):
     bottom = 0.0
-    for c in C_TAXA:
+    for c in taxa:
         val = float(np.nan_to_num(props[c][i], nan=0.0))
         ax.bar(
             xi, val,
@@ -588,18 +628,18 @@ for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
         # Always draw 4 fixed slots so every date lines up the same way;
         # a missing data source is shown as a gray "No retrieval" placeholder.
         slots = [
-            ("insitu", prop_insitu, "", 0.90, not np.isnan(biovol_total[i_global])),
-            ("abund",  prop_abund,  "...", 0.90, not np.isnan(abund_total[i_global])),
-            ("S3A",    prop_A,      "//", 0.75, has_A[i_global]),
-            ("S3B",    prop_B,      "xx", 0.75, has_B[i_global]),
+            ("insitu", prop_insitu, "", 0.90, not np.isnan(biovol_total[i_global]), BIOVOL_TAXA),
+            ("abund",  prop_abund,  "...", 0.90, not np.isnan(abund_total[i_global]), C_TAXA),
+            ("S3A",    prop_A,      "//", 0.75, has_A[i_global], C_TAXA),
+            ("S3B",    prop_B,      "xx", 0.75, has_B[i_global], C_TAXA),
         ]
 
         n_bars  = len(slots)
         offsets = np.linspace(-(n_bars - 1) / 2, (n_bars - 1) / 2, n_bars) * (w + gap)
 
-        for (_, props, hatch, alpha, present), xi in zip(slots, x[i_local] + offsets):
+        for (_, props, hatch, alpha, present, taxa), xi in zip(slots, x[i_local] + offsets):
             if present:
-                draw_bar(ax, xi, props, i_global, hatch, alpha)
+                draw_bar(ax, xi, props, i_global, hatch, alpha, taxa=taxa)
             else:
                 draw_missing_bar(ax, xi)
 
@@ -621,10 +661,13 @@ for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
 axes[-1].set_xlabel("Date", fontsize=20)
 
 # ── Legend (bottom of the figure, below all rows) ─────────────────────────────
+# BIOVOL_TAXA (C_1-C_5 + Chrysophyceae) covers every group that can appear in
+# any bar here — the extra groups just never show up in the abund/S3A/S3B
+# slots since those props dicts only ever have C_TAXA keys.
 taxa_patches = [
     mpatches.Patch(facecolor=TAXA_COLORS[c], label=GROUP_LABELS[c],
                    edgecolor="black", linewidth=0.5)
-    for c in C_TAXA
+    for c in BIOVOL_TAXA
 ]
 style_patches = [
     mpatches.Patch(facecolor="white", edgecolor="black", linewidth=0.8,
@@ -653,6 +696,109 @@ plt.savefig(PLOTS_DIR / "2_community_stacked_bar.png", dpi=150, bbox_inches="tig
 plt.show()
 
 # ─────────────────────────────────────────────
+# Plot 2b – Stacked-bar phytoplankton community (biovolume reference only)
+# ─────────────────────────────────────────────
+# Same dates/rows and satellite retrievals as Plot 2, just without the
+# abundance slot — easier to read with one less bar per date.
+w_2b = 0.20   # a bit wider than Plot 2's bars since there's one fewer slot
+
+fig, axes = plt.subplots(N_BAR_ROWS, 1, figsize=(16, 16))
+
+for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
+    n = len(dates_row)
+    if n == 0:
+        ax.set_visible(False)
+        continue
+    x = np.arange(n)
+
+    # Global indices into the full bar_dates list
+    offset = row * split
+
+    for i_local in range(n):
+        i_global = offset + i_local
+
+        slots = [
+            ("insitu", prop_insitu, "", 0.90, not np.isnan(biovol_total[i_global]), BIOVOL_TAXA),
+            ("S3A",    prop_A,      "//", 0.75, has_A[i_global], C_TAXA),
+            ("S3B",    prop_B,      "xx", 0.75, has_B[i_global], C_TAXA),
+        ]
+
+        n_bars  = len(slots)
+        offsets = np.linspace(-(n_bars - 1) / 2, (n_bars - 1) / 2, n_bars) * (w_2b + gap)
+
+        for (_, props, hatch, alpha, present, taxa), xi in zip(slots, x[i_local] + offsets):
+            if present:
+                bottom = 0.0
+                for c in taxa:
+                    val = float(np.nan_to_num(props[c][i_global], nan=0.0))
+                    ax.bar(
+                        xi, val,
+                        bottom=bottom,
+                        width=w_2b,
+                        color=TAXA_COLORS[c],
+                        alpha=alpha,
+                        hatch=hatch,
+                        edgecolor="black",
+                        linewidth=0.5,
+                    )
+                    bottom += val
+            else:
+                ax.bar(
+                    xi, 1.0,
+                    width=w_2b,
+                    color="0.85",
+                    alpha=0.9,
+                    hatch="\\\\",
+                    edgecolor="black",
+                    linewidth=0.5,
+                )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(
+        [t.strftime("%d.%m.%Y") for t in t_row],
+        rotation=30, ha="right", fontsize=15,
+    )
+    half_group_width = (n_bars - 1) / 2 * (w_2b + gap) + w_2b / 2
+    ax.set_xlim(x[0] - half_group_width, x[-1] + half_group_width)
+    ax.set_ylim(0, 1.0)
+    ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_ylabel("Proportion", fontsize=20)
+    ax.grid(True, alpha=0.3, axis="y")
+    ax.tick_params(axis="both", which="major", labelsize=15)
+
+axes[-1].set_xlabel("Date", fontsize=20)
+
+# ── Legend (bottom of the figure, below all rows) ─────────────────────────────
+taxa_patches_biovol = [
+    mpatches.Patch(facecolor=TAXA_COLORS[c], label=GROUP_LABELS[c],
+                   edgecolor="black", linewidth=0.5)
+    for c in BIOVOL_TAXA
+]
+style_patches_biovol = [
+    mpatches.Patch(facecolor="white", edgecolor="black", linewidth=0.8,
+                   label="In-situ (biovolume prop.)"),
+    mpatches.Patch(facecolor="white", edgecolor="black", linewidth=0.8,
+                   hatch="//", label="S3A (concentration prop.)"),
+    mpatches.Patch(facecolor="white", edgecolor="black", linewidth=0.8,
+                   hatch="xx", label="S3B (concentration prop.)"),
+    mpatches.Patch(facecolor="0.85", edgecolor="black", linewidth=0.8,
+                   hatch="\\\\", label="No retrieval"),
+]
+
+plt.tight_layout(rect=[0, 0.08, 1, 1])
+fig.legend(
+    handles=taxa_patches_biovol + style_patches_biovol,
+    fontsize=16,
+    loc="lower center",
+    bbox_to_anchor=(0.5, 0.0),
+    framealpha=0.9,
+    ncol=5,
+)
+
+plt.savefig(PLOTS_DIR / "2b_community_stacked_bar_biovolume_only.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+# ─────────────────────────────────────────────
 # Plot 3 – 1:1 scatter: satellite vs in-situ Chl-a (simple, aggregate)
 # ─────────────────────────────────────────────
 st_A = compute_stats(sat_A, ins_A)
@@ -662,18 +808,17 @@ sat_all = np.concatenate([sat_A, sat_B])
 ins_all = np.concatenate([ins_A, ins_B])
 st_all  = compute_stats(sat_all, ins_all)
 
-# percentage-based bias/MdSA, used only for the text box on this plot
-st_A_pct   = compute_stats_pct(sat_A, ins_A)
-st_B_pct   = compute_stats_pct(sat_B, ins_B)
-st_all_pct = compute_stats_pct(sat_all, ins_all)
+log_stat("CHL_1to1", "CPHY_S3_vs_CHL_S", "S3A", st_A)
+log_stat("CHL_1to1", "CPHY_S3_vs_CHL_S", "S3B", st_B)
+log_stat("CHL_1to1", "CPHY_S3_vs_CHL_S", "All", st_all)
 
 lims = [0, 15]
 xfit = np.array(lims)
 
 fig, ax = plt.subplots(figsize=(5, 5))
 
-ax.scatter(ins_A, sat_A, color="tab:green", alpha=0.6, s=40, label=f"S3A N={st_A_pct['n']}")
-ax.scatter(ins_B, sat_B, color="tab:green", alpha=0.6, s=40, marker="s", label=f"S3B N={st_B_pct['n']}")
+ax.scatter(ins_A, sat_A, color="tab:green", alpha=0.6, s=40, label=f"S3A N={st_A['n']}")
+ax.scatter(ins_B, sat_B, color="tab:green", alpha=0.6, s=40, marker="s", label=f"S3B N={st_B['n']}")
 ax.legend()
 
 ax.plot(lims, lims, "k--", alpha=0.7)
@@ -684,11 +829,11 @@ ax.plot(xfit, m * xfit + b, color="k", linewidth=0.8)
 
 ax.text(
     0.97, 0.01,
-    f"N={st_all_pct['n']}\n"
-    f"r={st_all_pct['r']:.2f}\n"
-    f"bias={st_all_pct['bias']:.1f}%\n"
-    f"RMSE={st_all_pct['rmse']:.2f}\n"
-    f"MdSA={st_all_pct['mdsa']:.1f}%",
+    f"N={st_all['n']}\n"
+    f"r={st_all['r']:.2f}\n"
+    f"bias={st_all['bias']:.1f}%\n"
+    f"RMSE={st_all['rmse']:.2f}\n"
+    f"MdSA={st_all['mdsa']:.1f}%",
     transform=ax.transAxes,
     fontsize=12,
     ha="right",
@@ -772,6 +917,7 @@ for i, group in enumerate(plot_groups):
 
     stats = compute_stats(x, y)
     all_stats.append((group, "abundance", stats))
+    log_stat_corr("phyto_abundance", group, "All", stats)
 
     ax.scatter(
         x,
@@ -866,6 +1012,7 @@ for i, group in enumerate(plot_groups):
 
     stats = compute_stats(x, y)
     all_stats.append((group, "biovolume", stats))
+    log_stat_corr("phyto_biovolume", group, "All", stats)
 
     ax.scatter(
         x,
@@ -935,8 +1082,9 @@ for tag, st in [("S3A", st_A), ("S3B", st_B), ("Combined", st_all)]:
     print(f"  N         = {st['n']}")
     print(f"  Pearson r = {st['r']:.3f}")
     print(f"  p-value   = {st['p']:.4f}")
-    print(f"  Bias      = {st['bias']:.3f}")
+    print(f"  Bias      = {st['bias']:.1f}%")
     print(f"  RMSE      = {st['rmse']:.3f}")
+    print(f"  MdSA      = {st['mdsa']:.1f}%")
 
 # ─────────────────────────────────────────────
 # Significance summary: per-group correlations, FDR-corrected (BH)
@@ -952,3 +1100,15 @@ if all_stats:
             print(f"{group:<6}{target:<12}{s['n']:<5}{s['r']:<8.2f}{s['p']:<10.4f}{p_a:<12.4f}{'*' if rej else ''}")
     else:
         print("\nNo group/target pair had enough data (N>=3) for a p-value.")
+
+# ─────────────────────────────────────────────
+# Save quality-metrics summary CSV (CHL + phyto abundance/biovolume)
+# ─────────────────────────────────────────────
+if _csv_rows:
+    df_summary = pd.DataFrame(
+        _csv_rows,
+        columns=["section", "variable", "satellite", "r", "bias_pct", "RMSE", "MdSA_pct", "p", "N"],
+    )
+    csv_path = PLOTS_DIR / "res_summary_shl2.csv"
+    df_summary.to_csv(csv_path, index=False)
+    print(f"\n── CSV saved → {csv_path}  ({len(df_summary)} rows) ──")

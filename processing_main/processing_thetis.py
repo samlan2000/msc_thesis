@@ -30,8 +30,6 @@ RESAMPLE_WAVELENGTHS = np.array([400, 412.5, 442.5, 490, 510, 560, 620, 665, 681
 RESAMPLE_FWHMS       = np.array([15, 10, 10, 10, 10, 10, 10, 10, 7.5, 10])
 
 # absorption config
-SURFACE_VAR_FACTOR   = 2.5   # near-surface bin flagged if variance > this * baseline variance
-MIN_DEPTH_BINS_FINAL = 3     # minimum depth bins remaining after QC, else reject cast
 SAVGOL_WINDOW, SAVGOL_POLYORDER = 5, 2
 
 INSITU_PATH_CSV = os.environ.get(
@@ -105,7 +103,7 @@ C_COMPONENTS = ["C_0", "C_1", "C_2", "C_3", "C_4", "C_5"]
 
 VARS_VALID_RANGES = {"CHL_A": [0.001, 50], "CHL_F": [0.001, 50], "aLH676": [0.001, 0.25], 
                      "bb630": [0.0001, 0.1], "bb700": [0.0001, 0.1], "bb532": [0.0001, 0.1], 
-                     "bb440": [0.0001, 0.1], "a": [0.0001, 1], "Rrs": [0.001, 0.1]}
+                     "bb440": [0.0001, 0.1], "a": [0.0001, 1], "Rrs": [0.001, 0.08]}
 
 def in_valid_range(val, var):
     # FIX: original was `if val < mx or val > mi: return True`, which is satisfied by
@@ -146,26 +144,6 @@ def closest_insitu(df_date, datetime_obj):
     dts = pd.Series(df_date["datetime"].unique())
     closest_dt = dts.iloc[(dts - datetime_obj).abs().argmin()]
     return df_date[df_date["datetime"] == closest_dt]
-
-
-def drop_anomalous_surface_bins(a_vals, depths, var_factor=SURFACE_VAR_FACTOR):
-    """
-    Flags shallow bin(s) whose across-wavelength variance is anomalously
-    high relative to the rest of the window (surface-interface artifact:
-    residual bubbles, self-shading, skin-layer effects). Never touches
-    the deepest bin; only ever drops starting from the top.
-    """
-    per_depth_var = np.nanvar(a_vals, axis=1)
-    baseline = np.nanmedian(per_depth_var[1:]) if len(per_depth_var) > 1 else np.nan
-    keep = np.ones(len(depths), dtype=bool)
-    if not np.isfinite(baseline) or baseline == 0:
-        return a_vals, depths
-    for i in range(len(depths) - 1):
-        if per_depth_var[i] > var_factor * baseline:
-            keep[i] = False
-        else:
-            break
-    return a_vals[keep], depths[keep]
 
 
 def get_insitu(date_str, satellite, col):
@@ -325,69 +303,51 @@ for img, sat in list_images(IMG_DIR_ALL):
 
     else:
         a_vals     = ds_a.a.values         # (depth, wavelength)
-        depths     = ds_a.depth.values
         wvl_native = ds_a.wavelength.values
 
-        depths_kept, a_kept = depths, a_vals
-        a_ok = True
+        # Robust central profile (median across all available depths)
+        a_avg_vals = np.nanmedian(a_vals, axis=0)
+        a_avg = xr.DataArray(
+            a_avg_vals,
+            dims="wavelength",
+            coords={"wavelength": wvl_native},
+        )
 
-        if a_vals.shape[0] < 3:
-            a_ok = False
+        if spectral_roughness(a_avg, wvl_native) > 0.001:
+            store[date_str]["a"] = np.nan
 
-        elif a_vals.shape[0] > MIN_DEPTH_BINS_FINAL:
-            # 1. Drop anomalous near-surface bin(s)
-            a_kept, depths_kept = drop_anomalous_surface_bins(a_vals, depths)
-            if a_kept.shape[0] < MIN_DEPTH_BINS_FINAL:
-                a_ok = False
+        elif has_nan_spectral_gaps(a_avg, wvl_native, max_gap_nm=10)[0]:
+            store[date_str]["a"] = np.nan
 
-        if not a_ok:
+        elif (
+            np.any(a_avg.values < 0)
+            or np.any(a_avg.values > 1)
+            or np.all(a_avg.values == 0)
+        ):
             store[date_str]["a"] = np.nan
 
         else:
-            # 2. Robust central profile (median across remaining depths)
-            a_avg_vals = np.nanmedian(a_kept, axis=0)
-            a_avg = xr.DataArray(
-                a_avg_vals,
-                dims="wavelength",
-                coords={"wavelength": wvl_native},
-            )
+            a_interp = a_avg.interpolate_na(
+                dim="wavelength",
+                method="linear"
+            ).values
 
-            if spectral_roughness(a_avg, wvl_native) > 0.001:
-                store[date_str]["a"] = np.nan
+            # Mild spectral smoothing on the native grid, before sensor resampling
+            a_final = a_interp
+            if len(a_interp) >= SAVGOL_WINDOW + 2:
+                a_final = savgol_filter(
+                    a_interp,
+                    window_length=SAVGOL_WINDOW,
+                    polyorder=SAVGOL_POLYORDER,
+                    mode="interp",
+                )
 
-            elif has_nan_spectral_gaps(a_avg, wvl_native, max_gap_nm=10)[0]:
-                store[date_str]["a"] = np.nan
-
-            elif (
-                np.any(a_avg.values < 0)
-                or np.any(a_avg.values > 1)
-                or np.all(a_avg.values == 0)
-            ):
-                store[date_str]["a"] = np.nan
-
-            else:
-                a_interp = a_avg.interpolate_na(
-                    dim="wavelength",
-                    method="linear"
-                ).values
-
-                # 3. Mild spectral smoothing on the native grid,
-                #    before sensor resampling
-                a_final = a_interp
-                if len(a_interp) >= SAVGOL_WINDOW + 2:
-                    a_final = savgol_filter(
-                        a_interp,
-                        window_length=SAVGOL_WINDOW,
-                        polyorder=SAVGOL_POLYORDER,
-                        mode="interp",
-                    )
-
-                store[date_str]["a"] = resample_spectra(
-                    a_final,
-                    wvl_native,
-                    res.wasi.wavelengths,
-                    res.FWHMs,
-                )[:-1]
+            store[date_str]["a"] = resample_spectra(
+                a_final,
+                wvl_native,
+                res.wasi.wavelengths,
+                res.FWHMs,
+            )[:-1]
     
     ################################################################################
     # hyperspectral in situ wasi retrievals

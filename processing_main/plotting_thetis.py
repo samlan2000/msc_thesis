@@ -27,6 +27,7 @@ import os
 import math
 import pickle as pkl
 from pathlib import Path
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FixedLocator, FuncFormatter
+from matplotlib.ticker import FixedLocator, FuncFormatter, MultipleLocator, FormatStrFormatter
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 
@@ -62,9 +63,20 @@ MARKERS = {"S3A": "o", "S3B": "s"}
 WAVELENGTHS_10 = np.array([400, 412.5, 442.5, 490, 510, 560, 620, 665, 681.25, 708.75])
 # indices [2,3,4,5,7] -> 442.5 / 490 / 510 / 560 / 665 nm (weighted / well-constrained bands)
 WEIGHTED_IDX = np.array([2, 3, 4, 5, 7])
+# compact 2-band subset -> 442.5 / 665 nm
+BAND_IDX_2 = np.array([2, 7])
 
 ALH676_OFFSET = 0.0033
 ALH676_SLOPE = 0.0132
+
+# Display labels for the in-situ Chl-a / CPHY reference methods, used by the
+# pairwise reference-vs-reference comparison (section a, Plot 2).
+METHOD_LABELS = {
+    "aLH676": r"aLH$_{676}$→CHL",
+    "CHL_A": r"CHL$_A$",
+    "CHL_F": r"CHL$_F$",
+    "CPHY_R": r"CPHY$_R$",
+}
 
 SCATTER_ALPHA = 0.6
 SCATTER_S = 30
@@ -250,15 +262,20 @@ def build_discrete_band_array(band_values, n_bands=10):
 def section_a_chla():
     print("\n── a) Chl-a 1:1 ─────────────────────────────────────────────────────────")
 
+    # Titles are "y vs. x" (y-axis var first) to match the bias/MdSA convention
+    # below: compute_stats(x, y) computes the ratio as x/y, and every call here
+    # passes (sat_v, ins) i.e. (y-axis data, x-axis data) — so bias is always
+    # CPHY_S3 (y) relative to the method (x): positive bias means CPHY_S3 reads
+    # higher than that method.
     PANEL_CFG = [
         dict(key="aLH676", convert_alh=True,
-             xlabel=r"aLH$_{676}$→CHL [mg m$^{-3}$]", title=r"aLH$_{676}$→CHL vs CPHY$_{S3}$"),
+             xlabel=r"aLH$_{676}$→CHL [mg m$^{-3}$]", title=r"CPHY$_{S3}$ vs aLH$_{676}$→CHL"),
         dict(key="CHL_A", convert_alh=False,
-             xlabel=r"CHL$_A$ [mg m$^{-3}$]", title=r"CHL$_A$ vs CPHY$_{S3}$"),
+             xlabel=r"CHL$_A$ [mg m$^{-3}$]", title=r"CPHY$_{S3}$ vs CHL$_A$"),
         dict(key="CHL_F", convert_alh=False,
-             xlabel=r"CHL$_F$ [mg m$^{-3}$]", title=r"CHL$_F$ vs CPHY$_{S3}$"),
+             xlabel=r"CHL$_F$ [mg m$^{-3}$]", title=r"CPHY$_{S3}$ vs CHL$_F$"),
         dict(key="CPHY_R", convert_alh=False, filter_max=50,
-             xlabel=r"CPHY$_R$ [mg m$^{-3}$]", title=r"CPHY$_R$ vs CPHY$_{S3}$"),
+             xlabel=r"CPHY$_R$ [mg m$^{-3}$]", title=r"CPHY$_{S3}$ vs CPHY$_R$"),
     ]
 
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
@@ -319,6 +336,140 @@ def section_a_chla():
 
     plt.tight_layout()
     plt.savefig(fig_path("a_chla_1to1.png"), dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    # ─────────────────────────────────────────────
+    # Plot 2 – 1:1 for every pair: rectangular, minimal ticks
+    # ─────────────────────────────────────────────
+    # Row-aligned (both sats concatenated) in-situ value per reference method,
+    # with the same aLH676->CHL conversion and CPHY_R range filter as Plot 1
+    # above — but NaN'd out-of-range rather than dropped, so every method's
+    # array stays the same length/row order and can be paired against any
+    # other method.
+    insitu_db = {}
+    for cfg in PANEL_CFG:
+        v = concat(cfg["key"]).astype(float).copy()
+        if cfg.get("convert_alh"):
+            v = (v - ALH676_OFFSET) / ALH676_SLOPE
+        if cfg.get("filter_max") is not None:
+            v = np.where(v <= cfg["filter_max"], v, np.nan)
+        insitu_db[cfg["key"]] = v
+
+    def paired_methods(m_a, m_b):
+        va, vb = insitu_db[m_a], insitu_db[m_b]
+        mask = np.isfinite(va) & np.isfinite(vb)
+        return va[mask], vb[mask]
+
+    method_list = list(insitu_db.keys())
+    pairs       = list(combinations(method_list, 2))
+
+    n_pairs = len(pairs)
+    n_cols  = 3
+    n_rows  = int(np.ceil(n_pairs / n_cols))
+    n_cells = n_rows * n_cols
+    n_empty = n_cells - n_pairs
+
+    fig, axs = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(5 * n_cols, 4 * n_rows)
+    )
+    # increase vertical spacing between rows
+    fig.subplots_adjust(hspace=0.45)
+    axs = axs.flatten()
+
+    for idx, (m_a, m_b) in enumerate(pairs):
+        ax = axs[idx]
+        va, vb = paired_methods(m_a, m_b)
+
+        if len(va) < 1:
+            ax.set_visible(False)
+            continue
+
+        # compute_stats(x, y) computes the ratio as x/y, so pass (vb, va) here
+        # — vb is the y-axis variable (m_b), va the x-axis variable (m_a) —
+        # so bias/MdSA end up expressed as "y relative to x": positive bias
+        # means the y-axis-labelled method reads higher than the x-axis one.
+        st = compute_stats(vb, va)
+        log_stat("a_chla_pairwise_1to1", f"{m_b}_vs_{m_a}", "All", st)
+        lims = [0, 15]
+
+        ax.scatter(
+            va, vb,
+            color="tab:green",
+            marker="o",
+            alpha=0.6,
+            s=30,
+            label=f"N={st['n']}"
+        )
+
+        ax.plot(lims, lims, "k--", linewidth=0.8, alpha=0.7)
+
+        mask = np.isfinite(va) & np.isfinite(vb)
+        if mask.sum() >= 2:
+            mf, bf = np.polyfit(va[mask], vb[mask], 1)
+            ax.plot(
+                np.array(lims),
+                mf * np.array(lims) + bf,
+                color="k",
+                linewidth=0.8
+            )
+
+        ax.set_xlim(lims)
+        ax.set_ylim(lims)
+
+        # Integer ticks and labels
+        ax.xaxis.set_major_locator(MultipleLocator(5))   # ticks at 0, 5, 10, 15
+        ax.yaxis.set_major_locator(MultipleLocator(5))
+        ax.xaxis.set_major_formatter(FormatStrFormatter("%d"))
+        ax.yaxis.set_major_formatter(FormatStrFormatter("%d"))
+
+        # bias = median(y/x) convention -> positive bias means y > x,
+        # so title is expressed as "y vs. x" to match the sign
+        ax.set_title(
+            f"{METHOD_LABELS[m_b]} vs. {METHOD_LABELS[m_a]}",
+            fontsize=16
+        )
+
+        ax.grid(True, alpha=0.3)
+        ax.legend(
+            fontsize=12,
+            loc="upper left",
+            handlelength=0,
+            handletextpad=1,
+            framealpha=1
+        )
+
+        ax.text(
+            0.97, 0.05,
+            f"r={st['r']:.2f}\n"
+            f"bias={st['bias']:.1f}%\n"
+            f"RMSE={st['rmse']:.2f}\n"
+            f"MdSA={st['mdsa']:.1f}%",
+            transform=ax.transAxes,
+            fontsize=14,
+            ha="right",
+            va="bottom"
+        )
+
+        unit = " [mg m$^{-3}$]"
+        ax.set_xlabel(METHOD_LABELS[m_a] + unit, fontsize=14)
+        ax.set_ylabel(METHOD_LABELS[m_b] + unit, fontsize=14)
+
+        ax.tick_params(axis="both", labelsize=10)
+        ax.set_aspect("equal", adjustable="box")
+
+    # Shadow cells
+    for k in range(n_empty):
+        shadow = axs[n_pairs + k]
+        shadow.set_frame_on(False)
+        shadow.tick_params(left=False, bottom=False,
+                           labelleft=False, labelbottom=False)
+    for j in range(n_pairs + n_empty, n_cells):
+        axs[j].set_visible(False)
+
+    plt.tight_layout(w_pad=0.3, h_pad=1.5)
+    plt.savefig(fig_path("a2_chla_insitu_pairwise_1to1.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -442,16 +593,20 @@ def plot_spectral_angle_hist(x_full, y_full, band_idx, title, fname):
     return med
 
 
-def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylabel_unit, fname):
+def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylabel_unit, fname, n_cols=2):
     """
-    Plain (uncolored) 2x2 grid of 1:1 panels for a set of four wavelength comparisons.
-    Uses the same fontsizes as the other single-panel ("individual") plots
+    Plain (uncolored) grid of 1:1 panels, one per band in band_idx — 2x2 for
+    the usual four-band case (d2/d3), automatically extended to more rows if
+    more bands are passed (e.g. the 5-band WEIGHTED_IDX used by d4). Uses the
+    same fontsizes as the other single-panel ("individual") plots
     (FS_TITLE / FS_AXIS / FS_TICK / FS_STATS / FS_LEGEND).
     """
     sats_arr = sat_labels_all()
-    fig, axs = plt.subplots(2, 2, figsize=(9, 8))
+    n = len(band_idx)
+    n_rows = int(np.ceil(n / n_cols))
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 4 * n_rows))
     fig.subplots_adjust(hspace=0.3, wspace=0.25)
-    axs = axs.flatten()
+    axs = np.atleast_1d(axs).flatten()
 
     for i, (band_i, actual_wvl) in enumerate(zip(band_idx, actual_wvls)):
         ax = axs[i]
@@ -489,6 +644,9 @@ def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylab
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=FS_LEGEND, loc="lower right", framealpha=1, handlelength=1.2)
 
+    for j in range(n, len(axs)):
+        axs[j].set_visible(False)
+
     plt.tight_layout()
     plt.savefig(fig_path(f"{fname}.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -496,6 +654,10 @@ def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylab
 
 # ═══════════════════════════════════════════════════════════════════════════
 # c) Absorption validation — a_wc_sat vs a_wc_R (hyperspectral, in-situ retrieval)
+#    c1) satellite vs. in-situ (weighted bands)     — spectral angle here
+#        + c1b) same, but only 442.5 & 665 nm
+#    c2) hyperspectral (_R) vs. in-situ
+#    c3) satellite vs. hyperspectral (_R)
 # ═══════════════════════════════════════════════════════════════════════════
 def section_c_absorption():
     a_R = concat("a_wc_R")
@@ -519,6 +681,25 @@ def section_c_absorption():
              label=r"log$_{10}$(a$_{phy}$/a$_{CDOM}$)"),
     ]
 
+    # _R equivalents of the above, used for c2's coloring (as in d3's color_cols_ref)
+    a_phy_R = concat("a_phy_R")
+    a_nap_R = concat("a_nap_R")
+    a_cdom_R = concat("a_cdom_R")
+    cphy_R = concat("CPHY_R")
+
+    log_phy_nap_R = np.log10(np.maximum(a_phy_R, 1e-9) / np.maximum(a_nap_R, 1e-9))
+    log_phy_cdom_R = np.log10(np.maximum(a_phy_R, 1e-9) / np.maximum(a_cdom_R, 1e-9))
+    cphy_R_2d = np.tile(cphy_R[:, None], (1, 10))
+
+    color_cols_ref = [
+        dict(values=cphy_R_2d, norm=mcolors.Normalize(vmin=0, vmax=9), cmap="YlGn",
+             label=r"CPHY$_R$ [mg m$^{-3}$]"),
+        dict(values=log_phy_nap_R, norm=mcolors.Normalize(vmin=-2, vmax=2), cmap="GnBu_r",
+             label=r"log$_{10}$(a$_{phy}$/a$_{NAP}$)$_R$"),
+        dict(values=log_phy_cdom_R, norm=mcolors.Normalize(vmin=-10, vmax=10), cmap="BrBG",
+             label=r"log$_{10}$(a$_{phy}$/a$_{CDOM}$)$_R$"),
+    ]
+
     # ── c1) satellite vs. in-situ ── (spectral angle lives here)
     plot_hyperspectral_1to1(
         a_ref, a_sat, WEIGHTED_IDX, color_cols,
@@ -530,9 +711,17 @@ def section_c_absorption():
                               "Spectral Angle — Absorption (weighted bands)",
                               "c1_a_wc_sat_vs_a_wc_sam.png")
 
+    # ── c1b) same as c1, but only two representative bands (442.5 & 665 nm) ──
+    plot_hyperspectral_1to1(
+        a_ref, a_sat, BAND_IDX_2, color_cols,
+        xlabel_unit=r"a$_{wc}$ [m$^{-1}$]", ylabel_unit=r"a$_{wc,S3}$ [m$^{-1}$]",
+        fname="c1b_a_wc_sat_vs_a_wc_2bands", section_tag="c1b_a_wc_sat_vs_a_wc_2bands",
+        log_prefix="c) Absorption 1:1 — a$_{wc,S3}$ vs a$_{wc}$ (in-situ, 442.5 & 665 nm)",
+    )
+
     # ── c2) hyperspectral (_R) vs. in-situ ──
     plot_hyperspectral_1to1(
-        a_ref, a_R, WEIGHTED_IDX, color_cols,
+        a_ref, a_R, WEIGHTED_IDX, color_cols_ref,
         xlabel_unit=r"a$_{wc}$ [m$^{-1}$]", ylabel_unit=r"a$_{wc,R}$ [m$^{-1}$]",
         fname="c2_a_wc_R_vs_a_wc", section_tag="c2_a_wc_R_vs_a_wc",
         log_prefix="c) Absorption 1:1 — a$_{wc,R}$ vs a$_{wc}$ (in-situ)",
@@ -560,8 +749,14 @@ def section_c_absorption():
 # d) Backscattering validation
 #    d1) discrete direct in-situ sensor bands (bb440/532/630/700) vs bb_wc_sat
 #    d2) bb_wc_sat vs bb_wc      (satellite vs. in-situ, discrete bands)  — spectral angle here
+#                                 + plain 2x2 (no color mapping)
 #    d3) bb_wc_R vs bb_wc        (hyperspectral vs. in-situ, discrete bands)
+#                                 + plain 2x2 (no color mapping)
 #    d4) bb_wc_sat vs bb_wc_R    (satellite vs. hyperspectral)
+#                                 + plain 2x3 (no color mapping, 5 weighted bands)
+#    d5) backscattering spectral shapes — normalised (630/620 nm) in-situ vs
+#        satellite bb spectra, split by CPHY_S3-/NAP_S3-dominance at 620 nm,
+#        plus a non-normalised mean-shape panel (4-panel A/B/C/D figure)
 # ═══════════════════════════════════════════════════════════════════════════
 def section_d_backscatter():
     print("\n── d) Backscattering bb 1:1 (discrete in-situ sensor bands) ───────────────")
@@ -723,6 +918,13 @@ def section_d_backscatter():
         actual_wvls=bb_ref_actual_wvls,
     )
 
+    # ── d3b) same four wavelengths, plain 2x2 grid without any color mapping ──
+    plot_bb_2x2_nocolor(
+        bb_ref, bb_R, bb_ref_idx, bb_ref_actual_wvls,
+        xlabel_unit=r"b$_{b,wc}$ [m$^{-1}$]", ylabel_unit=r"b$_{b,wc,R}$ [m$^{-1}$]",
+        fname="d3_bb_wc_R_vs_bb_wc_2x2",
+    )
+
     # ── d4) satellite vs. hyperspectral ──
     plot_hyperspectral_1to1(
         bb_R, bb_sat, WEIGHTED_IDX, color_cols_sat,
@@ -731,17 +933,176 @@ def section_d_backscatter():
         log_prefix="d) Backscattering 1:1 — b$_{b,wc,S3}$ vs b$_{b,wc,R}$ (hyperspectral)",
     )
 
+    # ── d4b) same bands (WEIGHTED_IDX, 5 -> 2x3 grid), plain, no color mapping ──
+    plot_bb_2x2_nocolor(
+        bb_R, bb_sat, WEIGHTED_IDX, WAVELENGTHS_10[WEIGHTED_IDX],
+        xlabel_unit=r"b$_{b,wc,R}$ [m$^{-1}$]", ylabel_unit=r"b$_{b,wc,S3}$ [m$^{-1}$]",
+        fname="d4_bb_wc_sat_vs_bb_wc_R_2x2",
+    )
+
+    # ── d5) backscattering spectral shapes ──────────────────────────────────
+    # In-situ  : 4 discrete bands [440, 532, 630, 700], normalised at 630 nm.
+    # Satellite: full WAVELENGTHS_10 spectrum, normalised at 620 nm (idx 6).
+    # Groups: All | CPHY_S3-dominated (bb_phy > bb_NAP at 620 nm)
+    #             | NAP_S3-dominated  (bb_NAP >= bb_phy at 620 nm)
+    print("\n── d5) Backscattering spectral shapes ──────────────────────────────────")
+
+    BB_INS_WVL = np.array([440.0, 532.0, 630.0, 700.0])
+    BB_INS_NORM_IDX = 2       # 630 nm, within BB_INS_WVL
+    BB_SAT_NORM_IDX = 6       # 620 nm, within WAVELENGTHS_10
+
+    ins_sp = np.stack(
+        [concat("bb440"), concat("bb532"), concat("bb630"), concat("bb700")], axis=1
+    )
+    sat_sp = concat("bb_wc_sat")
+    phy_sp = concat("bb_phy_sat")
+    nap_sp = concat("bb_nap_sat")
+
+    valid = (
+        np.all(np.isfinite(ins_sp), axis=1)
+        & np.all(np.isfinite(sat_sp), axis=1)
+        & np.isfinite(sat_sp[:, BB_SAT_NORM_IDX]) & (sat_sp[:, BB_SAT_NORM_IDX] > 0)
+        & np.isfinite(ins_sp[:, BB_INS_NORM_IDX]) & (ins_sp[:, BB_INS_NORM_IDX] > 0)
+    )
+    ins_sp, sat_sp, phy_sp, nap_sp = ins_sp[valid], sat_sp[valid], phy_sp[valid], nap_sp[valid]
+    N_total = len(ins_sp)
+    print(f"  Total matched profiles: {N_total}")
+
+    # normalise
+    ins_norm = ins_sp / ins_sp[:, BB_INS_NORM_IDX:BB_INS_NORM_IDX + 1]
+    sat_norm = sat_sp / sat_sp[:, BB_SAT_NORM_IDX:BB_SAT_NORM_IDX + 1]
+
+    # classify by bb_NAP vs bb_phy at 620 nm
+    ratio_nap_phy = nap_sp[:, BB_SAT_NORM_IDX] / np.maximum(phy_sp[:, BB_SAT_NORM_IDX], 1e-9)
+    mask_nap = ratio_nap_phy >= 1.0   # NAP-dominated
+    mask_phy = ~mask_nap               # CPHY-dominated
+
+    print(f"  CPHY_S3-dominated profiles: {mask_phy.sum()}")
+    print(f"  NAP_S3-dominated profiles:  {mask_nap.sum()}")
+
+    fig = plt.figure(figsize=(12, 9))
+    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.15)
+    ax_all = fig.add_subplot(gs[0, 0])
+    ax_phy = fig.add_subplot(gs[0, 1])
+    ax_nap = fig.add_subplot(gs[1, 0])
+    ax_mean = fig.add_subplot(gs[1, 1])
+
+    INS_COLOR, SAT_COLOR = "steelblue", "tomato"
+    ALPHA_IND = 0.12
+    LW_MEAN = 2.5
+    all_wvl = np.concatenate([BB_INS_WVL, WAVELENGTHS_10])
+    XLIM = [all_wvl.min() - 10, all_wvl.max() + 10]
+    YLIM = [0, 3]
+
+    SCATTER_GROUPS = [
+        (ax_all, np.ones(N_total, bool), "All profiles"),
+        (ax_phy, mask_phy, r"CPHY$_{S3}$-dom.  (b$_{b,phy}$ > b$_{b,NAP}$ at 620 nm)"),
+        (ax_nap, mask_nap, r"NAP$_{S3}$-dom.  (b$_{b,NAP}$ ≥ b$_{b,phy}$ at 620 nm)"),
+    ]
+
+    for ax, gmask, gtitle in SCATTER_GROUPS:
+        ins_sub = ins_norm[gmask]
+        sat_sub = sat_norm[gmask]
+        n_sub = gmask.sum()
+
+        for i in range(n_sub):
+            ax.plot(BB_INS_WVL, ins_sub[i], color=INS_COLOR, alpha=ALPHA_IND, linewidth=0.7)
+            ax.plot(WAVELENGTHS_10, sat_sub[i], color=SAT_COLOR, alpha=ALPHA_IND, linewidth=0.7)
+
+        mean_ins = np.nanmean(ins_sub, axis=0)
+        mean_sat = np.nanmean(sat_sub, axis=0)
+        std_ins = np.nanstd(ins_sub, axis=0)
+        std_sat = np.nanstd(sat_sub, axis=0)
+
+        ax.plot(BB_INS_WVL, mean_ins, color=INS_COLOR, linewidth=LW_MEAN,
+                label=f"In-situ (N={n_sub})", zorder=5)
+        ax.fill_between(BB_INS_WVL, mean_ins - std_ins, mean_ins + std_ins,
+                         color=INS_COLOR, alpha=0.20)
+        ax.plot(WAVELENGTHS_10, mean_sat, color=SAT_COLOR, linewidth=LW_MEAN,
+                label=f"Satellite (N={n_sub})", zorder=5)
+        ax.fill_between(WAVELENGTHS_10, mean_sat - std_sat, mean_sat + std_sat,
+                         color=SAT_COLOR, alpha=0.20)
+
+        ax.axvline(BB_INS_WVL[BB_INS_NORM_IDX], color=INS_COLOR, linestyle=":", linewidth=1.2, alpha=0.6)
+        ax.axvline(WAVELENGTHS_10[BB_SAT_NORM_IDX], color=SAT_COLOR, linestyle=":", linewidth=1.2, alpha=0.6)
+        ax.axhline(1.0, color="k", linestyle="--", linewidth=0.8, alpha=0.5)
+
+        ax.set_title(gtitle, fontsize=12)
+        ax.set_xlabel("Wavelength [nm]", fontsize=12)
+        ax.set_xlim(XLIM)
+        ax.set_ylim(YLIM)
+        ax.set_aspect((XLIM[1] - XLIM[0]) / (YLIM[1] - YLIM[0]), adjustable="box")
+        ax.tick_params(axis="both", labelsize=10)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=9, framealpha=0.5, loc="upper right", handlelength=1.2)
+        ax.set_ylabel("Normalised b$_b$ (÷ b$_b$ at 630/620 nm)", fontsize=12)
+
+        print(f"\n  [{gtitle.split('(')[0].strip()}]  N={n_sub}")
+        print(f"    In-situ  mean shape @{BB_INS_WVL.tolist()}: {mean_ins.round(3)}")
+        print(f"    Satellite mean shape @{WAVELENGTHS_10.tolist()}: {mean_sat.round(3)}")
+
+    # non-normalised mean-shape panel
+    GROUP_COLORS = {
+        "All": ("steelblue", "tomato"),
+        "PHY": ("cornflowerblue", "lightsalmon"),
+        "NAP": ("navy", "darkred"),
+    }
+    GROUP_STYLES = {"All": "-", "PHY": "--", "NAP": ":"}
+    GROUP_KEYS = ["All", "PHY", "NAP"]
+    GROUP_MASKS_DICT = {"All": np.ones(N_total, bool), "PHY": mask_phy, "NAP": mask_nap}
+    GROUP_LABELS_DICT = {"All": "All", "PHY": r"CPHY$_{S3}$-dom.", "NAP": r"NAP$_{S3}$-dom."}
+
+    print("\n  [Non-normalised mean shapes]")
+    for key in GROUP_KEYS:
+        gmask = GROUP_MASKS_DICT[key]
+        lc_ins, lc_sat = GROUP_COLORS[key]
+        ls = GROUP_STYLES[key]
+        lbl = GROUP_LABELS_DICT[key]
+
+        mean_ins_raw = np.nanmean(ins_sp[gmask], axis=0)
+        mean_sat_raw = np.nanmean(sat_sp[gmask], axis=0)
+        std_ins_raw = np.nanstd(ins_sp[gmask], axis=0)
+        std_sat_raw = np.nanstd(sat_sp[gmask], axis=0)
+
+        ax_mean.plot(BB_INS_WVL, mean_ins_raw, color=lc_ins, linewidth=LW_MEAN,
+                     linestyle=ls, label=f"In-situ {lbl}", zorder=5)
+        ax_mean.fill_between(BB_INS_WVL, mean_ins_raw - std_ins_raw, mean_ins_raw + std_ins_raw,
+                              color=lc_ins, alpha=0.15)
+        ax_mean.plot(WAVELENGTHS_10, mean_sat_raw, color=lc_sat, linewidth=LW_MEAN,
+                     linestyle=ls, label=f"Satellite {lbl}", zorder=5)
+        ax_mean.fill_between(WAVELENGTHS_10, mean_sat_raw - std_sat_raw, mean_sat_raw + std_sat_raw,
+                              color=lc_sat, alpha=0.15)
+
+        print(f"    [{key}] In-situ  @{BB_INS_WVL.tolist()}: {mean_ins_raw.round(4)}")
+        print(f"    [{key}] Satellite @{WAVELENGTHS_10.tolist()}: {mean_sat_raw.round(4)}")
+
+    ax_mean.set_title("Mean b$_b$ spectra (non-normalised)", fontsize=13)
+    ax_mean.set_xlabel("Wavelength [nm]", fontsize=12)
+    ax_mean.set_ylabel("b$_b$ [m$^{-1}$]", fontsize=12)
+    ax_mean.set_xlim(XLIM)
+    ax_mean.set_ylim(bottom=0)
+    ax_mean.set_aspect((XLIM[1] - XLIM[0]) / ax_mean.get_ylim()[1], adjustable="box")
+    ax_mean.tick_params(axis="both", labelsize=10)
+    ax_mean.grid(True, alpha=0.3)
+    ax_mean.legend(fontsize=9, framealpha=0.5, loc="upper right", handlelength=1.5, ncol=1)
+
+    for ax, label in zip([ax_all, ax_phy, ax_nap, ax_mean], ["(A)", "(B)", "(C)", "(D)"]):
+        ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=13, ha="left", va="top")
+
+    plt.savefig(fig_path("d5_bb_spectral_shapes.png"), dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # e) Rrs validation
 # ═══════════════════════════════════════════════════════════════════════════
 BAND_YLIMS_RRS = {
     400.0: 0.025, 412.5: 0.025, 442.5: 0.025, 490.0: 0.025, 510.0: 0.025,
-    560.0: 0.025, 620.0: 0.01, 665.0: 0.005, 681.25: 0.005, 708.75: 0.005,
+    560.0: 0.025, 620.0: 0.006, 665.0: 0.003, 681.25: 0.003, 708.75: 0.0025,
 }
 
 
-def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None):
+def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs,S3}$"):
     """A = satellite spectra, B = in-situ reference spectra (both (N,10))."""
     n = len(use_idx)
     n_cols = 3
@@ -788,7 +1149,7 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None):
         ax.tick_params(axis="both", labelsize=11)
         col = plot_i % n_cols
         next_row_has = (plot_i + n_cols) < n
-        ax.set_ylabel(r"R$_{rs,S3}$" if col == 0 else "", fontsize=15)
+        ax.set_ylabel(ylabel_sat if col == 0 else "", fontsize=15)
         if not next_row_has:
             ax.set_xlabel("In situ R$_{rs}$", fontsize=15)
 
@@ -840,13 +1201,17 @@ def section_e_rrs():
     rrs_ref = concat("Rrs")  # == rrs_input_R, the in-situ measured Rrs
 
     plot_rrs_grid(rrs_input_sat, rrs_ref, np.arange(10), "e1_rrs_input_all",
-                  "S3 OLCI (input) vs In-situ Rrs — all bands", sam_idx=np.arange(10))
+                  "S3 OLCI (input) vs In-situ Rrs — all bands", sam_idx=np.arange(10),
+                  ylabel_sat=r"R$_{rs,S3,input}$")
     plot_rrs_grid(rrs_input_sat, rrs_ref, WEIGHTED_IDX, "e1_rrs_input_weighted",
-                  "S3 OLCI (input) vs In-situ Rrs — weighted", sam_idx=WEIGHTED_IDX)
+                  "S3 OLCI (input) vs In-situ Rrs — weighted", sam_idx=WEIGHTED_IDX,
+                  ylabel_sat=r"R$_{rs,S3,input}$")
     plot_rrs_grid(rrs_fitted_sat, rrs_ref, WEIGHTED_IDX, "e2_rrs_fitted_weighted",
-                  "MiniWASI (fitted) vs In-situ Rrs — weighted bands", sam_idx=WEIGHTED_IDX)
+                  "MiniWASI (fitted) vs In-situ Rrs — weighted bands", sam_idx=WEIGHTED_IDX,
+                  ylabel_sat=r"R$_{rs,S3,fitted}$")
     plot_rrs_grid(rrs_fitted_sat, rrs_ref, np.arange(10), "e3_rrs_fitted_all",
-                  "MiniWASI (fitted) vs In-situ Rrs — all bands", sam_idx=np.arange(10))
+                  "MiniWASI (fitted) vs In-situ Rrs — all bands", sam_idx=np.arange(10),
+                  ylabel_sat=r"R$_{rs,S3,fitted}$")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1110,7 +1475,7 @@ if __name__ == "__main__":
     section_g_timeseries()
     section_I_correlation_grid()
 
-    df_summary = pd.DataFrame(_csv_rows, columns=["section", "variable", "satellite", "N", "r", "bias_pct", "RMSE", "MdSA_pct"])
+    df_summary = pd.DataFrame(_csv_rows, columns=["section", "variable", "satellite", "r", "bias_pct", "RMSE", "MdSA_pct", "N"])
     df_summary.to_csv(CSV_PATH, index=False)
     print(f"\n── CSV saved → {CSV_PATH}  ({len(df_summary)} rows) ──")
     print(f"── Figures saved → {OUT_DIR}/ ──")
