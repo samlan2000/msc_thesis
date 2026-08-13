@@ -575,7 +575,14 @@ def plot_spectral_angle_hist(x_full, y_full, band_idx, title, fname):
     sam = np.array([spectral_angle_weighted(y_full[i], x_full[i], band_idx) for i in range(len(x_full))])
     sam_finite = sam[np.isfinite(sam)]
     med = np.nanmedian(sam_finite) if len(sam_finite) else np.nan
-    print(f"  Spectral Angle  median={med:.3f}°   N={len(sam_finite)}")
+
+    sats_arr = sat_labels_all()
+    for sat in SATS:
+        sam_sat = sam[sats_arr == sat]
+        sam_sat_finite = sam_sat[np.isfinite(sam_sat)]
+        med_sat = np.nanmedian(sam_sat_finite) if len(sam_sat_finite) else np.nan
+        print(f"  Spectral Angle  {sat:>4}  median={med_sat:.3f}°   N={len(sam_sat_finite)}")
+    print(f"  Spectral Angle  {'All':>4}  median={med:.3f}°   N={len(sam_finite)}")
 
     fig, ax = plt.subplots(figsize=(7, 4))
     bins = np.linspace(0, np.nanpercentile(sam_finite, 99) * 1.1, 35) if len(sam_finite) else 20
@@ -735,12 +742,14 @@ def section_c_absorption():
         log_prefix="c) Absorption 1:1 — a$_{wc,S3}$ vs a$_{wc,R}$",
     )
 
-    # correlation with CPHY_S3, per band
+    # correlation with CPHY_S3, per band — true in-situ reference (a_ref/a_wc)
+    # and satellite retrieval (a_sat/a_wc_sat) vs. satellite CPHY_S3, matching
+    # the old plotting_V2.py reference script's a_insitu/a_sat vs C_phy block.
     print("\n── c) Absorption correlations with CPHY_S3 ────────────────────────────────")
-    print(f"  {'Band':>10}  {'r(a_R,Cphy)':>15}  {'r(a_sat,Cphy)':>15}  {'N':>5}")
+    print(f"  {'Band':>10}  {'r(a_wc,Cphy)':>15}  {'r(a_sat,Cphy)':>15}  {'N':>5}")
     for band_i in WEIGHTED_IDX:
         wvl = WAVELENGTHS_10[band_i]
-        r_ref, n_ref = pearson_r_positive(a_R[:, band_i], cphy_sat)
+        r_ref, n_ref = pearson_r_positive(a_ref[:, band_i], cphy_sat)
         r_sat, _ = pearson_r_positive(a_sat[:, band_i], cphy_sat)
         print(f"  {wvl:>10.2f}  {r_ref:>+15.4f}  {r_sat:>+15.4f}  {n_ref:>5d}")
 
@@ -940,6 +949,18 @@ def section_d_backscatter():
         fname="d4_bb_wc_sat_vs_bb_wc_R_2x2",
     )
 
+    # correlation with NAP_S3, per band (discrete in-situ bb bands only) —
+    # true in-situ reference (bb_ref/bb_wc) and satellite retrieval
+    # (bb_sat/bb_wc_sat) vs. satellite NAP_S3 (C_x_sat), mirroring the
+    # absorption section's correlation-with-CPHY_S3 block above.
+    print("\n── d) Backscattering correlations with NAP_S3 ─────────────────────────────")
+    print(f"  {'Band':>10}  {'r(bb_wc,Cx)':>15}  {'r(bb_sat,Cx)':>15}  {'N':>5}")
+    for band_i in bb_ref_idx:
+        wvl = WAVELENGTHS_10[band_i]
+        r_ref, n_ref = pearson_r_positive(bb_ref[:, band_i], cx_sat)
+        r_sat, _ = pearson_r_positive(bb_sat[:, band_i], cx_sat)
+        print(f"  {wvl:>10.2f}  {r_ref:>+15.4f}  {r_sat:>+15.4f}  {n_ref:>5d}")
+
     # ── d5) backscattering spectral shapes ──────────────────────────────────
     # In-situ  : 4 discrete bands [440, 532, 630, 700], normalised at 630 nm.
     # Satellite: full WAVELENGTHS_10 spectrum, normalised at 620 nm (idx 6).
@@ -1114,7 +1135,13 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     med_sam = np.median(sam_finite) if len(sam_finite) else np.nan
 
     print(f"\n── e) Rrs 1:1 — {label} ─────────────────────────────────────────────")
-    print(f"  Spectral Angle  median={med_sam:.3f}°   N={len(sam_finite)}")
+    sats_arr = sat_labels_all()
+    for sat in SATS:
+        sam_sat = sam_vals[sats_arr == sat]
+        sam_sat_finite = sam_sat[np.isfinite(sam_sat)]
+        med_sat = np.nanmedian(sam_sat_finite) if len(sam_sat_finite) else np.nan
+        print(f"  Spectral Angle  {sat:>4}  median={med_sat:.3f}°   N={len(sam_sat_finite)}")
+    print(f"  Spectral Angle  {'All':>4}  median={med_sam:.3f}°   N={len(sam_finite)}")
 
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows))
     fig.subplots_adjust(hspace=0.2, wspace=0.2)
@@ -1349,7 +1376,7 @@ def section_g_timeseries():
         ax_top.set_title(str(year), fontsize=16)
 
     for yg in range(n_row_groups):
-        axes_grid[(yg, 0, 0)].set_ylabel(r"CHL / CPHY [mg m$^{-3}$]", fontsize=14)
+        axes_grid[(yg, 0, 0)].set_ylabel(r"CHL & CPHY [mg m$^{-3}$]", fontsize=14)
         axes_grid[(yg, 1, 0)].set_ylabel(r"NAP [g m$^{-3}$]", fontsize=14)
         axes_grid[(yg, 2, 0)].set_ylabel(r"CDOM [m$^{-1}$]", fontsize=14)
 
