@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.signal import savgol_filter
-
 from PixelProcessor import SinglePixelProcessor
 from resampling import resample_spectra
 from rrs_qa import spectral_roughness, has_nan_spectral_gaps
@@ -101,7 +100,7 @@ PROCESSOR_KWARGS = dict(
 
 C_COMPONENTS = ["C_0", "C_1", "C_2", "C_3", "C_4", "C_5"]
 
-VARS_VALID_RANGES = {"CHL_A": [0.001, 50], "CHL_F": [0.001, 50], "aLH676": [0.001, 0.25], 
+VARS_VALID_RANGES = {"CHL_A": [0.001, 50], "CHL_F": [0.001, 50], "aLH676": [0.001, 0.5], 
                      "bb630": [0.0001, 0.1], "bb700": [0.0001, 0.1], "bb532": [0.0001, 0.1], 
                      "bb440": [0.0001, 0.1], "a": [0.0001, 1], "Rrs": [0.001, 0.08]}
 
