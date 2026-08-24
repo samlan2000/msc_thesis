@@ -229,6 +229,35 @@ for img in os.listdir(IMG_DIR):
             bvol_col = abund_col.replace("abundance_", "biovolume_")
             store["biovol_insitu"][c][date_str] = float(row[bvol_col]) if bvol_col in row.index else np.nan
 
+# ─────────────────────────────────────────────
+# Export set of (satellite, date) pairs actually used in a comparison —
+# i.e. successfully inverted image with >=1 non-NaN in-situ match (Chl-a
+# and/or phyto abundance/biovolume) — for cross-chain image-usage counting
+# (see count_used_images.py). Dates normalized to ISO YYYY-MM-DD to match
+# db_thetis*.pkl's key format.
+# ─────────────────────────────────────────────
+import pickle
+from datetime import datetime as _dt
+
+def _to_iso(date_str):
+    return _dt.strptime(date_str, "%d.%m.%Y").strftime("%Y-%m-%d")
+
+used_images = set()
+for sat, store in results.items():
+    for date_str, val in store["C_phy_insitu"].items():
+        if np.isfinite(val):
+            used_images.add((sat, _to_iso(date_str)))
+    for group_key in ("abund_insitu", "biovol_insitu"):
+        for date_dict in store[group_key].values():
+            for date_str, val in date_dict.items():
+                if np.isfinite(val):
+                    used_images.add((sat, _to_iso(date_str)))
+
+used_images_path = BASE_DIR / "outputs_L3" / "used_images_shl2.pkl"
+with open(used_images_path, "wb") as f:
+    pickle.dump(used_images, f)
+print(f"\n── Used images (shl2) saved → {used_images_path}  ({len(used_images)} sat/date pairs) ──")
+
 # Convert valid retrieval dates to normalized datetime index
 valid_dates = pd.to_datetime(list(valid_dates), dayfirst=True).normalize()
 valid_dates = pd.Index(valid_dates)

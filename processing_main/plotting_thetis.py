@@ -477,7 +477,7 @@ def section_a_chla():
 # Shared: hyperspectral 1:1 grid (used by c) absorption and d) bb hyperspectral
 # ═══════════════════════════════════════════════════════════════════════════
 def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, ylabel_unit,
-                             fname, section_tag, log_prefix, actual_wvls=None):
+                             fname, section_tag, log_prefix, actual_wvls=None, show_legend=True):
     """
     x_full, y_full : (N, 10) reference / satellite spectra (row-aligned, both sats concatenated)
     band_idx       : band indices (rows of the grid)
@@ -560,11 +560,12 @@ def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, y
                 cbar.set_label(cc["label"], fontsize=12)
 
     plt.tight_layout(h_pad=0.5, w_pad=0.4)
-    legend_handles = [
-        Line2D([0], [0], marker="o", color="grey", linestyle="none", ms=6, label=f"S3A  N={n_A}"),
-        Line2D([0], [0], marker="s", color="grey", linestyle="none", ms=6, label=f"S3B  N={n_B}"),
-    ]
-    axs[n_rows - 1, -1].legend(handles=legend_handles, fontsize=12, loc="lower right", framealpha=1)
+    if show_legend:
+        legend_handles = [
+            Line2D([0], [0], marker="o", color="grey", linestyle="none", ms=6, label=f"S3A  N={n_A}"),
+            Line2D([0], [0], marker="s", color="grey", linestyle="none", ms=6, label=f"S3B  N={n_B}"),
+        ]
+        axs[n_rows - 1, -1].legend(handles=legend_handles, fontsize=12, loc="lower right", framealpha=1)
     plt.savefig(fig_path(f"{fname}.png"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
@@ -732,6 +733,7 @@ def section_c_absorption():
         xlabel_unit=r"a$_{wc}$ [m$^{-1}$]", ylabel_unit=r"a$_{wc,R}$ [m$^{-1}$]",
         fname="c2_a_wc_R_vs_a_wc", section_tag="c2_a_wc_R_vs_a_wc",
         log_prefix="c) Absorption 1:1 — a$_{wc,R}$ vs a$_{wc}$ (in-situ)",
+        show_legend=False,
     )
 
     # ── c3) satellite vs. hyperspectral ──
@@ -925,6 +927,7 @@ def section_d_backscatter():
         fname="d3_bb_wc_R_vs_bb_wc", section_tag="d3_bb_wc_R_vs_bb_wc",
         log_prefix="d) Backscattering 1:1 — b$_{b,wc,R}$ vs b$_{b,wc}$ (in-situ)",
         actual_wvls=bb_ref_actual_wvls,
+        show_legend=False,
     )
 
     # ── d3b) same four wavelengths, plain 2x2 grid without any color mapping ──

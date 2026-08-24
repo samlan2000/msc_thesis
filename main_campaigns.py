@@ -50,9 +50,9 @@ sys.path.insert(0, str(PROCESSING_PRE_DIR))
 # EXECUTION SWITCHES — set True/False to (re-)run individual stages
 # ═══════════════════════════════════════════════════════════════════════
 RUN_DOWNLOAD_AC = False
-RUN_PRE_PROCESSING = True
+RUN_PRE_PROCESSING = False
 RUN_PROCESSING_CAMPAIGNS = True
-RUN_IMAGE_PROCESSING = True
+RUN_IMAGE_PROCESSING = False
 
 
 # ═══════════════════════════════════════════════════════════════════════

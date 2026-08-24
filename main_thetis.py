@@ -10,7 +10,7 @@ whole pipeline — or any subset of it — can be (re-)run from one place:
                              correction, once per .ini file in
                              THETIS_SENCAST_PARAMS_DIR
                              (processing_pre/run_sencast.py).
-    1. pre_processing       convert campaign satellite .nc products to
+    1. pre_processing       convert satellite .nc products to
                              band-restricted .bsq files, then filter the
                              combined Thetis .bsq archive down to images
                              with a valid in-situ match-up.

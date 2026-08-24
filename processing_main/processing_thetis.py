@@ -102,7 +102,7 @@ C_COMPONENTS = ["C_0", "C_1", "C_2", "C_3", "C_4", "C_5"]
 
 VARS_VALID_RANGES = {"CHL_A": [0.001, 50], "CHL_F": [0.001, 50], "aLH676": [0.001, 0.5], 
                      "bb630": [0.0001, 0.1], "bb700": [0.0001, 0.1], "bb532": [0.0001, 0.1], 
-                     "bb440": [0.0001, 0.1], "a": [0.0001, 1], "Rrs": [0.001, 0.08]}
+                     "bb440": [0.0001, 0.1], "a": [0.0001, 1], "Rrs": [0.001, 0.05]}
 
 def in_valid_range(val, var):
     # FIX: original was `if val < mx or val > mi: return True`, which is satisfied by

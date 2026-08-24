@@ -146,6 +146,32 @@ for img in os.listdir(IMG_DIR):
         store["C_y_insitu"][station][date_str]   = float(cdom)
 
 # ─────────────────────────────────────────────
+# Export set of (satellite, date) pairs actually used in a comparison —
+# i.e. successfully inverted image with >=1 station having a non-NaN
+# in-situ match (CHLA/TSM/CDOM) — for cross-chain image-usage counting
+# (see count_used_images.py). Dates normalized to ISO YYYY-MM-DD to match
+# db_thetis*.pkl's key format.
+# ─────────────────────────────────────────────
+import pickle
+from datetime import datetime as _dt
+
+def _to_iso(date_str):
+    return _dt.strptime(date_str, "%d.%m.%Y").strftime("%Y-%m-%d")
+
+used_images = set()
+for sat, store in results.items():
+    for var_key in ("C_phy_insitu", "C_x_insitu", "C_y_insitu"):
+        for date_dict in store[var_key].values():
+            for date_str, val in date_dict.items():
+                if np.isfinite(val):
+                    used_images.add((sat, _to_iso(date_str)))
+
+used_images_path = BASE_DIR / "outputs_L3" / "used_images_campaigns.pkl"
+with open(used_images_path, "wb") as f:
+    pickle.dump(used_images, f)
+print(f"\n── Used images (campaigns) saved → {used_images_path}  ({len(used_images)} sat/date pairs) ──")
+
+# ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
 def extract_paired(res_dict, var_key):
