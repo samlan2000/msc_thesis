@@ -377,7 +377,7 @@ fig.legend(
 )
 
 plt.tight_layout()
-plt.savefig(PLOTS_DIR / "campaigns_matchup.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "campaigns_matchup.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
@@ -407,7 +407,7 @@ draw_scatter_panel(
 )
 
 plt.tight_layout()
-plt.savefig(PLOTS_DIR / "campaigns_matchup_plain.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "campaigns_matchup_plain.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────

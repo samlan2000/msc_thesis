@@ -38,6 +38,7 @@ import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import FixedLocator, FuncFormatter, MultipleLocator, FormatStrFormatter
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
@@ -335,7 +336,7 @@ def section_a_chla():
         ax.legend(fontsize=9, loc="upper left", framealpha=1, handlelength=1.2)
 
     plt.tight_layout()
-    plt.savefig(fig_path("a_chla_1to1.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("a_chla_1to1.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
     # ─────────────────────────────────────────────
@@ -469,7 +470,7 @@ def section_a_chla():
         axs[j].set_visible(False)
 
     plt.tight_layout(w_pad=0.3, h_pad=1.5)
-    plt.savefig(fig_path("a2_chla_insitu_pairwise_1to1.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("a2_chla_insitu_pairwise_1to1.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -566,7 +567,7 @@ def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, y
             Line2D([0], [0], marker="s", color="grey", linestyle="none", ms=6, label=f"S3B  N={n_B}"),
         ]
         axs[n_rows - 1, -1].legend(handles=legend_handles, fontsize=12, loc="lower right", framealpha=1)
-    plt.savefig(fig_path(f"{fname}.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(f"{fname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
     return n_A, n_B
@@ -596,7 +597,7 @@ def plot_spectral_angle_hist(x_full, y_full, band_idx, title, fname):
     ax.tick_params(labelsize=FS_TICK)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(fig_path(fname), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(fname), dpi=300, bbox_inches="tight")
     plt.close(fig)
     return med
 
@@ -656,7 +657,7 @@ def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylab
         axs[j].set_visible(False)
 
     plt.tight_layout()
-    plt.savefig(fig_path(f"{fname}.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(f"{fname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -846,7 +847,7 @@ def section_d_backscatter():
                     mcolors.Normalize(vmin=0, vmax=3), r"NAP$_{S3}$ [mg m$^{-3}$]", False)
         axs[2].set_ylabel(sat_axis_label, fontsize=11)
 
-        plt.savefig(fig_path(f"d1_bb_discrete_{ins_key}.png"), dpi=150, bbox_inches="tight")
+        plt.savefig(fig_path(f"d1_bb_discrete_{ins_key}.png"), dpi=300, bbox_inches="tight")
         plt.close(fig)
 
     # band indices in WAVELENGTHS_10 matched to the direct in-situ sensor bands
@@ -1113,7 +1114,7 @@ def section_d_backscatter():
     for ax, label in zip([ax_all, ax_phy, ax_nap, ax_mean], ["(A)", "(B)", "(C)", "(D)"]):
         ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=13, ha="left", va="top")
 
-    plt.savefig(fig_path("d5_bb_spectral_shapes.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("d5_bb_spectral_shapes.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1174,6 +1175,13 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
 
         ax.set_xlim(lims); ax.set_ylim(lims)
         ax.set_aspect("equal", adjustable="box")
+        if lims[1] <= 0.006:
+            # Low-Rrs bands (620/665/681.25/708.75 nm): the default tick spacing
+            # packs too many decimal-heavy labels into the axis and they overlap —
+            # use fewer, evenly-spaced ticks instead. x and y share the same lims
+            # (1:1 plot, equal aspect), so both need it or the axes look mismatched.
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
         ax.set_title(f"\n {wvl} nm", fontsize=15)
         ax.grid(True, alpha=0.3)
         ax.tick_params(axis="both", labelsize=11)
@@ -1186,7 +1194,7 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     for j in range(n, len(axs)):
         axs[j].set_visible(False)
     plt.tight_layout()
-    plt.savefig(fig_path(f"{fname}.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(f"{fname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
     # spectra plot
@@ -1206,7 +1214,7 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     ax3.grid(True, alpha=0.3)
     ax3.tick_params(labelsize=11)
     plt.tight_layout()
-    plt.savefig(fig_path(f"{fname}_spectra.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(f"{fname}_spectra.png"), dpi=300, bbox_inches="tight")
     plt.close(fig3)
 
     # SAM distribution
@@ -1214,14 +1222,14 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     bins = np.linspace(0, np.percentile(sam_finite, 99) * 1.1, 35) if len(sam_finite) else 20
     ax2.hist(sam_finite, bins=bins, color="steelblue", alpha=0.75, edgecolor="white", label=f"N={len(sam_finite)}")
     ax2.axvline(med_sam, color="black", linestyle="--", linewidth=1.5, label=f"Median = {med_sam:.2f}°")
-    ax2.set_xlabel("Spectral Angle [°]", fontsize=FS_AXIS + 3)
-    ax2.set_ylabel("Count", fontsize=FS_AXIS + 3)
+    ax2.set_xlabel("Spectral Angle [°]", fontsize=FS_AXIS + 4)
+    ax2.set_ylabel("Count", fontsize=FS_AXIS + 4)
     ax2.set_title(f"Spectral Angle — Rrs {label}", fontsize=FS_TITLE + 1)
     ax2.legend(fontsize=FS_LEGEND + 3)
     ax2.tick_params(labelsize=FS_TICK + 1)
     ax2.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(fig_path(f"{fname}_sam.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path(f"{fname}_sam.png"), dpi=300, bbox_inches="tight")
     plt.close(fig2)
 
 
@@ -1291,7 +1299,7 @@ def section_f_nap_cdom():
         ax.legend(fontsize=11, loc="lower right", framealpha=1)
 
     plt.tight_layout(w_pad=0.5)
-    plt.savefig(fig_path("f_cdom_nap_1to1.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("f_cdom_nap_1to1.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1402,7 +1410,7 @@ def section_g_timeseries():
     axes_grid[(0, 1, N_COL - 1)].legend(handles=leg_mid, fontsize=12, loc="upper right", framealpha=0.9)
     axes_grid[(0, 2, N_COL - 1)].legend(handles=leg_bot, fontsize=12, loc="upper right", framealpha=0.9)
 
-    plt.savefig(fig_path("g_annual_timeseries.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("g_annual_timeseries.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1489,7 +1497,7 @@ def section_I_correlation_grid():
     cbar.ax.tick_params(labelsize=13)
 
     plt.tight_layout()
-    plt.savefig(fig_path("I_correlation_summary_grid.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(fig_path("I_correlation_summary_grid.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 

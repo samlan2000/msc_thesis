@@ -531,7 +531,7 @@ labels = [h.get_label() for h in handles]
 ax2.legend(handles, labels, fontsize=11, loc="upper left")
 
 plt.tight_layout()
-plt.savefig(PLOTS_DIR / "1_timeseries_chla_secchi_nap_cdom.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "1_timeseries_chla_secchi_nap_cdom.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
@@ -721,7 +721,7 @@ fig.legend(
     ncol=5,
 )
 
-plt.savefig(PLOTS_DIR / "2_community_stacked_bar.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "2_community_stacked_bar.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
@@ -824,7 +824,7 @@ fig.legend(
     ncol=5,
 )
 
-plt.savefig(PLOTS_DIR / "2b_community_stacked_bar_biovolume_only.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "2b_community_stacked_bar_biovolume_only.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
@@ -876,7 +876,7 @@ ax.set_ylabel("CPHY$_{S3}$ [mg m$^{-3}$]", fontsize=13)
 ax.tick_params(axis="both", labelsize=10)
 ax.grid(True)
 plt.tight_layout()
-plt.savefig(PLOTS_DIR / "3_scatter_1to1_chla.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "3_scatter_1to1_chla.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
@@ -1006,7 +1006,7 @@ for i, group in enumerate(plot_groups):
 for ax in axs[len(plot_groups):]:
     ax.set_visible(False)
 
-plt.savefig(PLOTS_DIR / "4a_scatter_model_vs_abundance.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "4a_scatter_model_vs_abundance.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # Same but for biovolume
@@ -1100,7 +1100,7 @@ for i, group in enumerate(plot_groups):
 # Hide unused axes
 for ax in axs[len(plot_groups):]:
     ax.set_visible(False)
-plt.savefig(PLOTS_DIR / "4b_scatter_model_vs_biovolume.png", dpi=150, bbox_inches="tight")
+plt.savefig(PLOTS_DIR / "4b_scatter_model_vs_biovolume.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # ─────────────────────────────────────────────
