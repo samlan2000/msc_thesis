@@ -43,6 +43,19 @@ from matplotlib.ticker import FixedLocator, FuncFormatter, MultipleLocator, Form
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 
+# ═════════════════════════════════════════════════════════════════════════════
+# Font — change this to switch the font used everywhere in this script
+# ═════════════════════════════════════════════════════════════════════════════
+FONT_FAMILY = "Times New Roman"
+plt.rcParams["font.family"] = FONT_FAMILY
+# Bump the default font size +1.5pt (TNR renders slightly smaller than
+# matplotlib's default DejaVu Sans at the same point size) so every text
+# element that does NOT set an explicit fontsize (e.g. some tick labels)
+# grows in step with the ones below that do. Uses an ABSOLUTE value (not
+# +=) so re-running this script in the same session/kernel never compounds
+# the font size on repeated runs.
+plt.rcParams["font.size"] = 10 + 1.5  # matplotlib default (10) + bump
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Config — paths are overridable via environment variables so that main_thetis.py
 # can control them centrally. Defaults below are only used when this script
@@ -81,7 +94,7 @@ METHOD_LABELS = {
 
 SCATTER_ALPHA = 0.6
 SCATTER_S = 30
-FS_TITLE, FS_AXIS, FS_TICK, FS_STATS, FS_LEGEND = 13, 11, 9, 11, 9
+FS_TITLE, FS_AXIS, FS_TICK, FS_STATS, FS_LEGEND = 14.5, 12.5, 10.5, 12.5, 10.5
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Data capture — one flat, row-aligned table per satellite
@@ -324,16 +337,16 @@ def section_a_chla():
         ax.text(0.97, 0.01,
                 f"N={st_all['n']:.0f}\nr={st_all['r']:.2f}\nbias={st_all['bias']:.1f}%\n"
                 f"RMSE={st_all['rmse']:.2f}\nMdSA={st_all['mdsa']:.1f}%\n",
-                transform=ax.transAxes, fontsize=9, ha="right", va="bottom")
+                transform=ax.transAxes, fontsize=10.5, ha="right", va="bottom")
 
         ax.set_xlim(lims); ax.set_ylim(lims)
         ax.set_aspect("equal", adjustable="box")
-        ax.set_xlabel(cfg["xlabel"], fontsize=10)
-        ax.set_ylabel(r"CPHY$_{S3}$ [mg m$^{-3}$]" if idx % 2 == 0 else "", fontsize=10)
-        ax.set_title(cfg["title"], fontsize=11)
-        ax.tick_params(axis="both", labelsize=9)
+        ax.set_xlabel(cfg["xlabel"], fontsize=11.5)
+        ax.set_ylabel(r"CPHY$_{S3}$ [mg m$^{-3}$]" if idx % 2 == 0 else "", fontsize=11.5)
+        ax.set_title(cfg["title"], fontsize=12.5)
+        ax.tick_params(axis="both", labelsize=10.5)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=9, loc="upper left", framealpha=1, handlelength=1.2)
+        ax.legend(fontsize=10.5, loc="upper left", framealpha=0.9, handlelength=1.2)
 
     plt.tight_layout()
     plt.savefig(fig_path("a_chla_1to1.png"), dpi=300, bbox_inches="tight")
@@ -429,16 +442,16 @@ def section_a_chla():
         # so title is expressed as "y vs. x" to match the sign
         ax.set_title(
             f"{METHOD_LABELS[m_b]} vs. {METHOD_LABELS[m_a]}",
-            fontsize=16
+            fontsize=17.5
         )
 
         ax.grid(True, alpha=0.3)
         ax.legend(
-            fontsize=12,
+            fontsize=13.5,
             loc="upper left",
             handlelength=0,
             handletextpad=1,
-            framealpha=1
+            framealpha=0.9
         )
 
         ax.text(
@@ -448,16 +461,16 @@ def section_a_chla():
             f"RMSE={st['rmse']:.2f}\n"
             f"MdSA={st['mdsa']:.1f}%",
             transform=ax.transAxes,
-            fontsize=14,
+            fontsize=15.5,
             ha="right",
             va="bottom"
         )
 
         unit = " [mg m$^{-3}$]"
-        ax.set_xlabel(METHOD_LABELS[m_a] + unit, fontsize=14)
-        ax.set_ylabel(METHOD_LABELS[m_b] + unit, fontsize=14)
+        ax.set_xlabel(METHOD_LABELS[m_a] + unit, fontsize=15.5)
+        ax.set_ylabel(METHOD_LABELS[m_b] + unit, fontsize=15.5)
 
-        ax.tick_params(axis="both", labelsize=10)
+        ax.tick_params(axis="both", labelsize=11.5)
         ax.set_aspect("equal", adjustable="box")
 
     # Shadow cells
@@ -478,7 +491,8 @@ def section_a_chla():
 # Shared: hyperspectral 1:1 grid (used by c) absorption and d) bb hyperspectral
 # ═══════════════════════════════════════════════════════════════════════════
 def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, ylabel_unit,
-                             fname, section_tag, log_prefix, actual_wvls=None, show_legend=True):
+                             fname, section_tag, log_prefix, actual_wvls=None, show_legend=True,
+                             xy_label_fontsize=14.5, cbar_label_fontsize=13.5):
     """
     x_full, y_full : (N, 10) reference / satellite spectra (row-aligned, both sats concatenated)
     band_idx       : band indices (rows of the grid)
@@ -541,24 +555,24 @@ def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, y
                 ax.text(0.03, 0.97,
                         f"N={st_all['n']}\nr={st_all['r']:.2f}\nbias={st_all['bias']:.1f}%\n"
                         f"RMSE={st_all['rmse']:.3f}\nMdSA={st_all['mdsa']:.1f}%",
-                        transform=ax.transAxes, fontsize=13, va="top")
+                        transform=ax.transAxes, fontsize=14.5, va="top")
 
             if row == n_rows - 1:
-                ax.set_xlabel(xlabel_unit, fontsize=13)
+                ax.set_xlabel(xlabel_unit, fontsize=xy_label_fontsize)
             if col == 0:
-                ax.set_ylabel(f"{wvl_label}\n{ylabel_unit}", fontsize=13)
+                ax.set_ylabel(f"{wvl_label}\n{ylabel_unit}", fontsize=xy_label_fontsize)
             else:
                 ax.tick_params(labelleft=False)
             if row != n_rows - 1:
                 ax.tick_params(labelbottom=False)
-            ax.tick_params(labelsize=12)
+            ax.tick_params(labelsize=13.5)
             ax.grid(True, alpha=0.3, which="both")
 
             if row == 0:
-                ax.set_title(cc["label"], fontsize=15)
+                ax.set_title(cc["label"], fontsize=16.5)
                 cbar = fig.colorbar(plt.cm.ScalarMappable(norm=cc["norm"], cmap=cc["cmap"]),
                                      ax=ax, fraction=0.04, pad=0.02)
-                cbar.set_label(cc["label"], fontsize=12)
+                cbar.set_label(cc["label"], fontsize=cbar_label_fontsize)
 
     plt.tight_layout(h_pad=0.5, w_pad=0.4)
     if show_legend:
@@ -566,7 +580,7 @@ def plot_hyperspectral_1to1(x_full, y_full, band_idx, color_cols, xlabel_unit, y
             Line2D([0], [0], marker="o", color="grey", linestyle="none", ms=6, label=f"S3A  N={n_A}"),
             Line2D([0], [0], marker="s", color="grey", linestyle="none", ms=6, label=f"S3B  N={n_B}"),
         ]
-        axs[n_rows - 1, -1].legend(handles=legend_handles, fontsize=12, loc="lower right", framealpha=1)
+        axs[n_rows - 1, -1].legend(handles=legend_handles, fontsize=13.5, loc="lower right", framealpha=0.9)
     plt.savefig(fig_path(f"{fname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
@@ -593,7 +607,7 @@ def plot_spectral_angle_hist(x_full, y_full, band_idx, title, fname):
     ax.set_xlabel("Spectral Angle [°]", fontsize=FS_AXIS)
     ax.set_ylabel("Count", fontsize=FS_AXIS)
     ax.set_title(title, fontsize=FS_TITLE)
-    ax.legend(fontsize=FS_LEGEND)
+    ax.legend(fontsize=FS_LEGEND, framealpha=0.9)
     ax.tick_params(labelsize=FS_TICK)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -651,7 +665,7 @@ def plot_bb_2x2_nocolor(x_full, y_full, band_idx, actual_wvls, xlabel_unit, ylab
         ax.set_ylabel(ylabel_unit, fontsize=FS_AXIS)
         ax.tick_params(labelsize=FS_TICK)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=FS_LEGEND, loc="lower right", framealpha=1, handlelength=1.2)
+        ax.legend(fontsize=FS_LEGEND, loc="lower right", framealpha=0.9, handlelength=1.2)
 
     for j in range(n, len(axs)):
         axs[j].set_visible(False)
@@ -726,6 +740,7 @@ def section_c_absorption():
         xlabel_unit=r"a$_{wc}$ [m$^{-1}$]", ylabel_unit=r"a$_{wc,S3}$ [m$^{-1}$]",
         fname="c1b_a_wc_sat_vs_a_wc_2bands", section_tag="c1b_a_wc_sat_vs_a_wc_2bands",
         log_prefix="c) Absorption 1:1 — a$_{wc,S3}$ vs a$_{wc}$ (in-situ, 442.5 & 665 nm)",
+        xy_label_fontsize=15.5, cbar_label_fontsize=14.5,  # +1pt vs the other panels in this section
     )
 
     # ── c2) hyperspectral (_R) vs. in-situ ──
@@ -821,23 +836,23 @@ def section_d_backscatter():
                     Line2D([0], [0], marker="s", color="grey", linestyle="none", ms=6,
                            label=f"S3B  N={compute_stats(per_sat['S3B'][1], per_sat['S3B'][0])['n']}"),
                 ]
-                ax.legend(handles=legend_handles, fontsize=10, loc="upper right", framealpha=1, handlelength=1.2)
+                ax.legend(handles=legend_handles, fontsize=11.5, loc="upper right", framealpha=0.9, handlelength=1.2)
                 ax.text(0.03, 0.97,
                         f"N={st_all['n']}\nr={st_all['r']:.2f}\nbias={st_all['bias']:.0f}%\n"
                         f"RMSE={st_all['rmse']:.3f}\nMdSA={st_all['mdsa']:.0f}%\n",
-                        transform=ax.transAxes, fontsize=10, ha="left", va="top")
+                        transform=ax.transAxes, fontsize=11.5, ha="left", va="top")
             ax.set_xlim(lims_bb); ax.set_ylim(lims_bb)
             ax.set_aspect("equal", adjustable="box")
-            ax.set_xlabel(ins_axis_label, fontsize=11)
-            ax.tick_params(axis="both", labelsize=10)
+            ax.set_xlabel(ins_axis_label, fontsize=12.5)
+            ax.tick_params(axis="both", labelsize=11.5)
             ax.grid(True, alpha=0.3)
             cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, fraction=0.046, pad=0.04)
-            cb.set_label(cbar_label, fontsize=11)
-            cb.ax.tick_params(labelsize=10)
+            cb.set_label(cbar_label, fontsize=12.5)
+            cb.ax.tick_params(labelsize=11.5)
 
         setup_panel(axs[0], {s: per_sat[s][4] for s in SATS}, "YlGn",
                     mcolors.Normalize(vmin=0, vmax=10), r"CPHY$_{S3}$ [mg m$^{-3}$]", True)
-        axs[0].set_ylabel(sat_axis_label, fontsize=10)
+        axs[0].set_ylabel(sat_axis_label, fontsize=11.5)
 
         setup_panel(axs[1], log_nap_phy, "GnBu",
                     mcolors.Normalize(vmin=-1, vmax=1), r"log$_{10}$(b$_{b,NAP}$/b$_{b,phy}$)", False)
@@ -845,7 +860,7 @@ def section_d_backscatter():
 
         setup_panel(axs[2], {s: per_sat[s][5] for s in SATS}, "Blues",
                     mcolors.Normalize(vmin=0, vmax=3), r"NAP$_{S3}$ [mg m$^{-3}$]", False)
-        axs[2].set_ylabel(sat_axis_label, fontsize=11)
+        axs[2].set_ylabel(sat_axis_label, fontsize=12.5)
 
         plt.savefig(fig_path(f"d1_bb_discrete_{ins_key}.png"), dpi=300, bbox_inches="tight")
         plt.close(fig)
@@ -1052,15 +1067,16 @@ def section_d_backscatter():
         ax.axvline(WAVELENGTHS_10[BB_SAT_NORM_IDX], color=SAT_COLOR, linestyle=":", linewidth=1.2, alpha=0.6)
         ax.axhline(1.0, color="k", linestyle="--", linewidth=0.8, alpha=0.5)
 
-        ax.set_title(gtitle, fontsize=12)
-        ax.set_xlabel("Wavelength [nm]", fontsize=12)
+        ax.set_title(gtitle, fontsize=13.5)
+        if ax is not ax_all and ax is not ax_phy:  # top row (A, B) gets no x-axis label;
+            ax.set_xlabel("Wavelength [nm]", fontsize=13.5)  # bottom row (C) still needs one
         ax.set_xlim(XLIM)
         ax.set_ylim(YLIM)
         ax.set_aspect((XLIM[1] - XLIM[0]) / (YLIM[1] - YLIM[0]), adjustable="box")
-        ax.tick_params(axis="both", labelsize=10)
+        ax.tick_params(axis="both", labelsize=11.5)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=9, framealpha=0.5, loc="upper right", handlelength=1.2)
-        ax.set_ylabel("Normalised b$_b$ (÷ b$_b$ at 630/620 nm)", fontsize=12)
+        ax.legend(fontsize=10.5, framealpha=0.9, loc="upper right", handlelength=1.2)
+        ax.set_ylabel("Normalised b$_b$ (÷ b$_b$ at 630/620 nm)", fontsize=13.5)
 
         print(f"\n  [{gtitle.split('(')[0].strip()}]  N={n_sub}")
         print(f"    In-situ  mean shape @{BB_INS_WVL.tolist()}: {mean_ins.round(3)}")
@@ -1101,18 +1117,18 @@ def section_d_backscatter():
         print(f"    [{key}] In-situ  @{BB_INS_WVL.tolist()}: {mean_ins_raw.round(4)}")
         print(f"    [{key}] Satellite @{WAVELENGTHS_10.tolist()}: {mean_sat_raw.round(4)}")
 
-    ax_mean.set_title("Mean b$_b$ spectra (non-normalised)", fontsize=13)
-    ax_mean.set_xlabel("Wavelength [nm]", fontsize=12)
-    ax_mean.set_ylabel("b$_b$ [m$^{-1}$]", fontsize=12)
+    ax_mean.set_title("Mean b$_b$ spectra (non-normalised)", fontsize=14.5)
+    ax_mean.set_xlabel("Wavelength [nm]", fontsize=13.5)
+    ax_mean.set_ylabel("b$_b$ [m$^{-1}$]", fontsize=13.5)
     ax_mean.set_xlim(XLIM)
     ax_mean.set_ylim(bottom=0)
     ax_mean.set_aspect((XLIM[1] - XLIM[0]) / ax_mean.get_ylim()[1], adjustable="box")
-    ax_mean.tick_params(axis="both", labelsize=10)
+    ax_mean.tick_params(axis="both", labelsize=11.5)
     ax_mean.grid(True, alpha=0.3)
-    ax_mean.legend(fontsize=9, framealpha=0.5, loc="upper right", handlelength=1.5, ncol=1)
+    ax_mean.legend(fontsize=10.5, framealpha=0.9, loc="upper right", handlelength=1.5, ncol=1)
 
     for ax, label in zip([ax_all, ax_phy, ax_nap, ax_mean], ["(A)", "(B)", "(C)", "(D)"]):
-        ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=13, ha="left", va="top")
+        ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=14.5, ha="left", va="top")
 
     plt.savefig(fig_path("d5_bb_spectral_shapes.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -1146,6 +1162,9 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
         med_sat = np.nanmedian(sam_sat_finite) if len(sam_sat_finite) else np.nan
         print(f"  Spectral Angle  {sat:>4}  median={med_sat:.3f}°   N={len(sam_sat_finite)}")
     print(f"  Spectral Angle  {'All':>4}  median={med_sam:.3f}°   N={len(sam_finite)}")
+    if fname == "e1_rrs_input_all":
+        n_5_15 = int(np.sum((sam_finite >= 5) & (sam_finite <= 15)))
+        print(f"  Spectral Angle in [5°, 15°]  (e1_rrs_input_all_sam.png): N={n_5_15}")
 
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows))
     fig.subplots_adjust(hspace=0.2, wspace=0.2)
@@ -1171,7 +1190,7 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
 
         ax.text(0.03, 0.97,
                 f"N={st['n']}\nr={st['r']:.2f}\nbias={st['bias']:.1f}%\nRMSE={st['rmse']:.4f}\nMdSA={st['mdsa']:.1f}%\n",
-                transform=ax.transAxes, fontsize=13, ha="left", va="top")
+                transform=ax.transAxes, fontsize=14.5, ha="left", va="top")
 
         ax.set_xlim(lims); ax.set_ylim(lims)
         ax.set_aspect("equal", adjustable="box")
@@ -1182,14 +1201,14 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
             # (1:1 plot, equal aspect), so both need it or the axes look mismatched.
             ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
             ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
-        ax.set_title(f"\n {wvl} nm", fontsize=15)
+        ax.set_title(f"\n {wvl} nm", fontsize=16.5)
         ax.grid(True, alpha=0.3)
-        ax.tick_params(axis="both", labelsize=11)
+        ax.tick_params(axis="both", labelsize=12.5)
         col = plot_i % n_cols
         next_row_has = (plot_i + n_cols) < n
-        ax.set_ylabel(ylabel_sat if col == 0 else "", fontsize=15)
+        ax.set_ylabel(ylabel_sat if col == 0 else "", fontsize=16.5)
         if not next_row_has:
-            ax.set_xlabel("In situ R$_{rs}$", fontsize=15)
+            ax.set_xlabel("In situ R$_{rs}$", fontsize=16.5)
 
     for j in range(n, len(axs)):
         axs[j].set_visible(False)
@@ -1207,12 +1226,12 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     med_sat = np.nanmedian(A[:, use_idx], axis=0)
     ax3.plot(plot_wvls, med_ins, color="steelblue", linewidth=2.5, label=f"In situ  (N={len(B)})")
     ax3.plot(plot_wvls, med_sat, color="tomato", linewidth=2.5, label=f"Satellite (N={len(A)})")
-    ax3.set_xlabel("Wavelength [nm]", fontsize=13)
-    ax3.set_ylabel(r"R$_{rs}$ [sr$^{-1}$]", fontsize=13)
-    ax3.set_title(f"Rrs spectra — {label}", fontsize=14)
-    ax3.legend(fontsize=12, framealpha=0.9)
+    ax3.set_xlabel("Wavelength [nm]", fontsize=14.5)
+    ax3.set_ylabel(r"R$_{rs}$ [sr$^{-1}$]", fontsize=14.5)
+    ax3.set_title(f"Rrs spectra — {label}", fontsize=15.5)
+    ax3.legend(fontsize=13.5, framealpha=0.9)
     ax3.grid(True, alpha=0.3)
-    ax3.tick_params(labelsize=11)
+    ax3.tick_params(labelsize=12.5)
     plt.tight_layout()
     plt.savefig(fig_path(f"{fname}_spectra.png"), dpi=300, bbox_inches="tight")
     plt.close(fig3)
@@ -1225,7 +1244,7 @@ def plot_rrs_grid(A, B, use_idx, fname, label, sam_idx=None, ylabel_sat=r"R$_{rs
     ax2.set_xlabel("Spectral Angle [°]", fontsize=FS_AXIS + 4)
     ax2.set_ylabel("Count", fontsize=FS_AXIS + 4)
     ax2.set_title(f"Spectral Angle — Rrs {label}", fontsize=FS_TITLE + 1)
-    ax2.legend(fontsize=FS_LEGEND + 3)
+    ax2.legend(fontsize=FS_LEGEND + 3, framealpha=0.9)
     ax2.tick_params(labelsize=FS_TICK + 1)
     ax2.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1293,10 +1312,10 @@ def section_f_nap_cdom():
         add_stats_text(ax, st_all, loc="upper left")
         ax.set_xlim(lims_f); ax.set_ylim(lims_f)
         ax.set_aspect("equal", adjustable="box")
-        ax.set_xlabel(xlabel, fontsize=13); ax.set_ylabel(ylabel, fontsize=13)
-        ax.tick_params(labelsize=11)
+        ax.set_xlabel(xlabel, fontsize=14.5); ax.set_ylabel(ylabel, fontsize=14.5)
+        ax.tick_params(labelsize=12.5)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=11, loc="lower right", framealpha=1)
+        ax.legend(fontsize=12.5, loc="lower right", framealpha=0.9)
 
     plt.tight_layout(w_pad=0.5)
     plt.savefig(fig_path("f_cdom_nap_1to1.png"), dpi=300, bbox_inches="tight")
@@ -1329,17 +1348,41 @@ def section_g_timeseries():
             for c in range(N_COL):
                 axes_grid[(yg, vr, c)] = fig.add_subplot(inner[yg][vr, c])
 
-    # hide the unused cells in an incomplete last row so no empty subplot is visible
+    # hide the unused cells in an incomplete last row so no empty subplot is visible,
+    # except reserve the first such empty cell per row-type (CHL&CPHY / NAP / CDOM) to
+    # host that row's legend instead of overlaying it on real data further up -- see
+    # the legend placement below.
+    legend_yg = n_row_groups - 1
+    legend_col = last_row_n_years if last_row_n_years < N_COL else None
     for vr in range(3):
         for c in range(last_row_n_years, N_COL):
+            if legend_col is not None and c == legend_col:
+                continue
             axes_grid[(n_row_groups - 1, vr, c)].set_visible(False)
+
+    if legend_col is not None:
+        # keep this cell visible but strip it down to a blank panel so it reads
+        # as empty space, not a data subplot, once the legend is placed inside it
+        for vr in range(3):
+            legend_ax = axes_grid[(legend_yg, vr, legend_col)]
+            legend_ax.set_xticks([])
+            legend_ax.set_yticks([])
+            for spine in legend_ax.spines.values():
+                spine.set_visible(False)
+    else:
+        # no empty cell available (years fill every column exactly) -- fall back to
+        # the original spot, on top of the last real column of the first row-group
+        legend_yg, legend_col = 0, N_COL - 1
 
     for vr in range(3):
         ref_ax = axes_grid[(0, vr, 0)]
         for yg in range(n_row_groups):
             for c in range(N_COL):
-                if not (yg == 0 and c == 0):
-                    axes_grid[(yg, vr, c)].sharey(ref_ax)
+                if (yg, c) == (0, 0) or (yg, c) == (legend_yg, legend_col):
+                    continue  # the legend panel holds no data -- sharey() would
+                    # silently regrow its stripped ticks/spines (matplotlib resets
+                    # them when an axis joins a shared-y group), so skip it here
+                axes_grid[(yg, vr, c)].sharey(ref_ax)
 
     def year_vals(sat, key, year):
         d = FRAMES[sat]["date"]  # DatetimeIndex
@@ -1375,7 +1418,7 @@ def section_g_timeseries():
             ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=[3, 6, 9, 12]))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
             ax.grid(True, alpha=0.3)
-            ax.tick_params(labelsize=12)
+            ax.tick_params(labelsize=13.5)
             if col > 0:
                 ax.tick_params(labelleft=False)
 
@@ -1384,12 +1427,12 @@ def section_g_timeseries():
         ax_top.set_ylim(0, 15)
         ax_mid.set_ylim(0, 4)
         ax_bot.set_ylim(0, 0.3)
-        ax_top.set_title(str(year), fontsize=16)
+        ax_top.set_title(str(year), fontsize=17.5)
 
     for yg in range(n_row_groups):
-        axes_grid[(yg, 0, 0)].set_ylabel(r"CHL & CPHY [mg m$^{-3}$]", fontsize=14)
-        axes_grid[(yg, 1, 0)].set_ylabel(r"NAP [g m$^{-3}$]", fontsize=14)
-        axes_grid[(yg, 2, 0)].set_ylabel(r"CDOM [m$^{-1}$]", fontsize=14)
+        axes_grid[(yg, 0, 0)].set_ylabel(r"CHL & CPHY [mg m$^{-3}$]", fontsize=15.5)
+        axes_grid[(yg, 1, 0)].set_ylabel(r"NAP [g m$^{-3}$]", fontsize=15.5)
+        axes_grid[(yg, 2, 0)].set_ylabel(r"CDOM [m$^{-1}$]", fontsize=15.5)
 
     leg_top = [
         Line2D([0], [0], marker="o", color="green", ls="none", ms=7, label=r"CPHY$_{S3}$  S3A"),
@@ -1406,9 +1449,12 @@ def section_g_timeseries():
         Line2D([0], [0], marker="s", color="tab:brown", ls="none", ms=7, label=r"CDOM$_{S3}$  S3B"),
         Line2D([0], [0], marker="x", color="peru", ls="none", ms=7, markeredgewidth=1.5, label=r"CDOM$_R$"),
     ]
-    axes_grid[(0, 0, N_COL - 1)].legend(handles=leg_top, fontsize=12, loc="upper right", framealpha=0.9)
-    axes_grid[(0, 1, N_COL - 1)].legend(handles=leg_mid, fontsize=12, loc="upper right", framealpha=0.9)
-    axes_grid[(0, 2, N_COL - 1)].legend(handles=leg_bot, fontsize=12, loc="upper right", framealpha=0.9)
+    # loc="center left" anchors the legend's left edge (not its center) at the
+    # panel's vertical middle, so it sits toward the left of the empty cell --
+    # closer to the real data columns -- instead of floating in the middle of it
+    axes_grid[(legend_yg, 0, legend_col)].legend(handles=leg_top, fontsize=13.5, loc="center left", framealpha=0.9)
+    axes_grid[(legend_yg, 1, legend_col)].legend(handles=leg_mid, fontsize=13.5, loc="center left", framealpha=0.9)
+    axes_grid[(legend_yg, 2, legend_col)].legend(handles=leg_bot, fontsize=13.5, loc="center left", framealpha=0.9)
 
     plt.savefig(fig_path("g_annual_timeseries.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -1476,8 +1522,8 @@ def section_I_correlation_grid():
             txt_color = "white" if (np.isfinite(r) and abs(r) > 0.55) else "black"
             r_txt = f"r = {r:+.2f}" if np.isfinite(r) else "r = n/a"
             ax.text(col + 0.5, y_pos + 0.62, f"{_short(xl)}\nvs\n{_short(yl)}",
-                    ha="center", va="center", fontsize=15, color=txt_color)
-            ax.text(col + 0.5, y_pos + 0.28, r_txt, ha="center", va="center", fontsize=15, color=txt_color)
+                    ha="center", va="center", fontsize=16.5, color=txt_color)
+            ax.text(col + 0.5, y_pos + 0.28, r_txt, ha="center", va="center", fontsize=16.5, color=txt_color)
 
             log_stat("I_correlation_grid", f"{_short(xl)}_vs_{_short(yl)}", "All",
                       dict(n=int(mask.sum()), r=r, bias=np.nan, rmse=np.nan, mdsa=np.nan))
@@ -1485,7 +1531,7 @@ def section_I_correlation_grid():
     ax.set_xlim(0, n_cols); ax.set_ylim(0, n_rows)
     ax.set_xticks([])
     ax.set_yticks(np.arange(n_rows) + 0.5)
-    ax.set_yticklabels([r[0] for r in ROWS][::-1], fontsize=15, rotation=30, ha="right")
+    ax.set_yticklabels([r[0] for r in ROWS][::-1], fontsize=16.5, rotation=30, ha="right")
     ax.set_aspect("equal")
     for spine in ax.spines.values():
         spine.set_visible(False)
@@ -1493,8 +1539,8 @@ def section_I_correlation_grid():
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, fraction=0.04, pad=0.04)
-    cbar.set_label("Pearson r", fontsize=18)
-    cbar.ax.tick_params(labelsize=13)
+    cbar.set_label("Pearson r", fontsize=19.5)
+    cbar.ax.tick_params(labelsize=14.5)
 
     plt.tight_layout()
     plt.savefig(fig_path("I_correlation_summary_grid.png"), dpi=300, bbox_inches="tight")

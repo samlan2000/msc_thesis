@@ -34,10 +34,10 @@ OUT_DIR = Path(os.environ.get("CAMPAIGNS_IMAGES_OUT_DIR", str(BASE_DIR / "output
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 PROCESSOR_KWARGS = dict(
-    weights=None,
-    vary={"C_x": True, "C_y": True, "C_0": False, "C_3": True, "C_5": True},
-    init={"C_y": 0.1, "C_0": 0, "C_x": 1, "C_3": 2, "C_5": 2},
-    output_wcs=["C_x", "C_3", "C_5", "C_y"],
+    weights=[0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0],
+    vary={"C_x": True, "C_y": True, "C_0": False, "C_1": True, "C_2": True, "C_3": True, "C_4": True,  "C_5": True},
+    init={"C_y": 0.1, "C_0": 0, "C_x": 1, "C_1": 1, "C_2": 1, "C_3": 1, "C_4": 1,  "C_5": 1},
+    output_wcs=["C_x", "C_1", "C_2", "C_3", "C_4", "C_5", "C_y"],
     output_iops=["bb", "a", "a_cdom", "a_nap", "a_phy", "bb_nap", "bb_phy"],
 )
 

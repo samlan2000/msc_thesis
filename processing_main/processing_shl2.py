@@ -42,6 +42,19 @@ from statsmodels.stats.multitest import multipletests
 from PixelProcessor import SinglePixelProcessor
 
 # ─────────────────────────────────────────────
+# Font — change this to switch the font used everywhere in this script
+# ─────────────────────────────────────────────
+FONT_FAMILY = "Times New Roman"
+plt.rcParams["font.family"] = FONT_FAMILY
+# Bump the default font size +1.5pt (TNR renders slightly smaller than
+# matplotlib's default DejaVu Sans at the same point size) so every text
+# element that does NOT set an explicit fontsize (e.g. some tick labels)
+# grows in step with the ones below that do. Uses an ABSOLUTE value (not
+# +=) so re-running this script in the same session/kernel never compounds
+# the font size on repeated runs.
+plt.rcParams["font.size"] = 10 + 1.5  # matplotlib default (10) + bump
+
+# ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -410,9 +423,9 @@ ax0.scatter(t_A, ins_A, marker="x", color="black", alpha=0.8, label="In situ CHL
 ax0.scatter(t_B, ins_B, marker="x", color="black", alpha=0.8)
 ax0.scatter(t_A, sat_A, color="tab:green", s=40, label="S3A CPHY$_{S3}$")
 ax0.scatter(t_B, sat_B, marker="s", color="tab:green", s=40, label="S3B CPHY$_{S3}$")
-ax0.set_ylabel("CHL$_S$ / CPHY$_{S3}$ \n [mg m$^{-3}$]", fontsize=14)
+ax0.set_ylabel("CHL$_S$ / CPHY$_{S3}$ \n [mg m$^{-3}$]", fontsize=15.5)
 ax0.grid(True, alpha=0.3)
-ax0.legend(fontsize=12)
+ax0.legend(fontsize=13.5, framealpha=0.9)
 ax0.set_ylim(0, 15)
 
 # ── Subplot 1: Chl-a max depth + Secchi depth ───────────────────────────────
@@ -471,10 +484,10 @@ for _, row in merged.iterrows():
         linewidth=1
     )
 
-ax1.set_ylabel("Depth [m]", fontsize=14)
+ax1.set_ylabel("Depth [m]", fontsize=15.5)
 ax1.invert_yaxis()
 ax1.grid(True, alpha=0.3)
-ax1.legend(fontsize=12)
+ax1.legend(fontsize=13.5, framealpha=0.9)
 
 # ── Subplot 2: NAP + CDOM (dual axis) ──────────────────────────────────────
 ax2 = axs[2]
@@ -498,7 +511,7 @@ nap2 = ax2.scatter(
     label="S3B NAP"
 )
 
-ax2.set_ylabel("NAP$_{S3}$ [g m$^{-3}$]", fontsize=14)
+ax2.set_ylabel("NAP$_{S3}$ [g m$^{-3}$]", fontsize=15.5)
 ax2.grid(True, alpha=0.3)
 
 # CDOM
@@ -519,16 +532,16 @@ cdom2 = ax2b.scatter(
     label="S3B CDOM"
 )
 
-ax2b.set_ylabel("CDOM$_{S3}$ [m$^{-1}$]", fontsize=14)
+ax2b.set_ylabel("CDOM$_{S3}$ [m$^{-1}$]", fontsize=15.5)
 
 # Shared x label
-ax2.set_xlabel("Time", fontsize=14)
+ax2.set_xlabel("Time", fontsize=15.5)
 
 # Combined legend
 handles = [nap1, nap2, cdom1, cdom2]
 labels = [h.get_label() for h in handles]
 
-ax2.legend(handles, labels, fontsize=11, loc="upper left")
+ax2.legend(handles, labels, fontsize=12.5, loc="upper left", framealpha=0.9)
 
 plt.tight_layout()
 plt.savefig(PLOTS_DIR / "1_timeseries_chla_secchi_nap_cdom.png", dpi=300, bbox_inches="tight")
@@ -675,7 +688,7 @@ for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
     ax.set_xticks(x)
     ax.set_xticklabels(
         [t.strftime("%d.%m.%Y") for t in t_row],
-        rotation=30, ha="right", fontsize=15,
+        rotation=30, ha="right", fontsize=16.5,
     )
     # Half-width of a full date group: distance from the group center to the
     # outer edge of its outermost bar (offset to outermost slot + half its width).
@@ -683,11 +696,11 @@ for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
     ax.set_xlim(x[0] - half_group_width, x[-1] + half_group_width)
     ax.set_ylim(0, 1.0)           # no empty space at top
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
-    ax.set_ylabel("Proportion", fontsize=20)
+    ax.set_ylabel("Proportion", fontsize=21.5)
     ax.grid(True, alpha=0.3, axis="y")
-    ax.tick_params(axis="both", which="major", labelsize=15)
+    ax.tick_params(axis="both", which="major", labelsize=16.5)
 
-axes[-1].set_xlabel("Date", fontsize=20)
+axes[-1].set_xlabel("Date", fontsize=21.5)
 
 # ── Legend (bottom of the figure, below all rows) ─────────────────────────────
 # BIOVOL_TAXA (C_1-C_5 + Chrysophyceae) covers every group that can appear in
@@ -714,7 +727,7 @@ style_patches = [
 plt.tight_layout(rect=[0, 0.08, 1, 1])
 fig.legend(
     handles=taxa_patches + style_patches,
-    fontsize=16,
+    fontsize=17.5,
     loc="lower center",
     bbox_to_anchor=(0.5, 0.0),
     framealpha=0.9,
@@ -785,17 +798,16 @@ for row, (ax, dates_row, t_row) in enumerate(zip(axes, date_splits, t_splits)):
     ax.set_xticks(x)
     ax.set_xticklabels(
         [t.strftime("%d.%m.%Y") for t in t_row],
-        rotation=30, ha="right", fontsize=15,
+        rotation=30, ha="right", fontsize=16.5,
     )
     half_group_width = (n_bars - 1) / 2 * (w_2b + gap) + w_2b / 2
     ax.set_xlim(x[0] - half_group_width, x[-1] + half_group_width)
     ax.set_ylim(0, 1.0)
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
-    ax.set_ylabel("Proportion", fontsize=20)
     ax.grid(True, alpha=0.3, axis="y")
-    ax.tick_params(axis="both", which="major", labelsize=15)
+    ax.tick_params(axis="both", which="major", labelsize=16.5)
 
-axes[-1].set_xlabel("Date", fontsize=20)
+axes[-1].set_xlabel("Date", fontsize=24.5)
 
 # ── Legend (bottom of the figure, below all rows) ─────────────────────────────
 taxa_patches_biovol = [
@@ -814,14 +826,25 @@ style_patches_biovol = [
                    hatch="\\\\", label="No retrieval"),
 ]
 
-plt.tight_layout(rect=[0, 0.08, 1, 1])
+plt.tight_layout(rect=[0, 0.12, 1, 1])  # more bottom margin for the legend's extra (3rd) row
+
+# Single shared y-axis label for all rows, centered on the actual axes grid
+# (not the whole figure -- that would sit low, skewed by the legend margin)
+visible_axes = [a for a in axes if a.get_visible()]
+y_top = visible_axes[0].get_position().y1
+y_bottom = visible_axes[-1].get_position().y0
+# x default is 0.02 (fraction of figure width, ha="left"); since tight_layout
+# ran before this label existed, it never reserved room for it, so the
+# default sat right on top of the y-tick numbers -- nudge it further left
+fig.supylabel("Proportion", fontsize=24.5, x=-0.01, y=(y_top + y_bottom) / 2)
+
 fig.legend(
     handles=taxa_patches_biovol + style_patches_biovol,
-    fontsize=16,
+    fontsize=20,
     loc="lower center",
     bbox_to_anchor=(0.5, 0.0),
     framealpha=0.9,
-    ncol=5,
+    ncol=4,  # 10 handles / 4 cols -> 3 rows (was ncol=5 -> 2 rows, too wide at the new fontsize)
 )
 
 plt.savefig(PLOTS_DIR / "2b_community_stacked_bar_biovolume_only.png", dpi=300, bbox_inches="tight")
@@ -848,7 +871,7 @@ fig, ax = plt.subplots(figsize=(5, 5))
 
 ax.scatter(ins_A, sat_A, color="tab:green", alpha=0.6, s=40, label=f"S3A N={st_A['n']}")
 ax.scatter(ins_B, sat_B, color="tab:green", alpha=0.6, s=40, marker="s", label=f"S3B N={st_B['n']}")
-ax.legend()
+ax.legend(fontsize=11.5, framealpha=0.9)  # was implicit/default-sized; now matches the other legends in this script
 
 ax.plot(lims, lims, "k--", alpha=0.7)
 
@@ -864,17 +887,17 @@ ax.text(
     f"RMSE={st_all['rmse']:.2f}\n"
     f"MdSA={st_all['mdsa']:.1f}%",
     transform=ax.transAxes,
-    fontsize=12,
+    fontsize=13.5,
     ha="right",
     va="bottom",
 )
 
 ax.set_xlim(lims)
 ax.set_ylim(lims)
-ax.set_xlabel("CHL$_S$ [mg m$^{-3}$]", fontsize=13)
-ax.set_ylabel("CPHY$_{S3}$ [mg m$^{-3}$]", fontsize=13)
-ax.tick_params(axis="both", labelsize=10)
-ax.grid(True)
+ax.set_xlabel("CHL$_S$ [mg m$^{-3}$]", fontsize=14.5)
+ax.set_ylabel("CPHY$_{S3}$ [mg m$^{-3}$]", fontsize=14.5)
+ax.tick_params(axis="both", labelsize=11.5)
+ax.grid(True, alpha=0.3)  # match grid style used everywhere else in this script
 plt.tight_layout()
 plt.savefig(PLOTS_DIR / "3_scatter_1to1_chla.png", dpi=300, bbox_inches="tight")
 plt.show()
@@ -970,18 +993,18 @@ for i, group in enumerate(plot_groups):
 
     ax.set_title(
         GROUP_LABELS.get(group, group),
-        fontsize=14
+        fontsize=15.5
     )
 
     ax.set_xlabel(
         f"{GROUP_LABELS.get(group, group).split()[0]} [mg m$^{{-3}}$]",
-        fontsize=12
+        fontsize=13.5
     )
 
     if group in ylabel_groups:
         ax.set_ylabel(
             "Abundance [cells mL$^{-1}$]",
-            fontsize=12
+            fontsize=13.5
         )
 
     sig = "*" if np.isfinite(stats['p']) and stats['p'] < 0.05 else ""
@@ -990,7 +1013,7 @@ for i, group in enumerate(plot_groups):
         0.95,
         f"N={stats['n']}\nr={stats['r']:.2f}{sig}\np={stats['p']:.3f}",
         transform=ax.transAxes,
-        fontsize=12,
+        fontsize=13.5,
         ha="right",
         va="top"
     )
@@ -999,7 +1022,7 @@ for i, group in enumerate(plot_groups):
 
     ax.tick_params(
         axis="both",
-        labelsize=10
+        labelsize=11.5
     )
 
 # Hide unused axes
@@ -1064,18 +1087,18 @@ for i, group in enumerate(plot_groups):
 
     ax.set_title(
         GROUP_LABELS.get(group, group),
-        fontsize=14
+        fontsize=15.5
     )
 
     ax.set_xlabel(
         f"{GROUP_LABELS.get(group, group).split()[0]} [mg m$^{{-3}}$]",
-        fontsize=12
+        fontsize=13.5
     )
 
     if group in ylabel_groups:
         ax.set_ylabel(
             "Biovolume [µm³ mL$^{-1}$]",
-            fontsize=12
+            fontsize=13.5
         )
 
     sig = "*" if np.isfinite(stats['p']) and stats['p'] < 0.05 else ""
@@ -1084,7 +1107,7 @@ for i, group in enumerate(plot_groups):
         0.95,
         f"N={stats['n']}\nr={stats['r']:.2f}{sig}\np={stats['p']:.3f}",
         transform=ax.transAxes,
-        fontsize=12,
+        fontsize=13.5,
         ha="right",
         va="top"
     )
@@ -1094,7 +1117,7 @@ for i, group in enumerate(plot_groups):
     # Tick label size
     ax.tick_params(
         axis="both",
-        labelsize=10
+        labelsize=11.5
     )
 
 # Hide unused axes

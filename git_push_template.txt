@@ -1,5 +1,0 @@
-cd "C:\MSc_thesis_samuel"
-git status
-git add -A
-git commit -m "Add download_ac (sencast) stage to main_shl2/thetis/campaigns.py"
-git push

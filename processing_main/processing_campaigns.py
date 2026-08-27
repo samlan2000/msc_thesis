@@ -29,6 +29,19 @@ from collections import defaultdict
 from PixelProcessor import SinglePixelProcessor
 
 # ─────────────────────────────────────────────
+# Font — change this to switch the font used everywhere in this script
+# ─────────────────────────────────────────────
+FONT_FAMILY = "Times New Roman"
+plt.rcParams["font.family"] = FONT_FAMILY
+# Bump the default font size +1.5pt (TNR renders slightly smaller than
+# matplotlib's default DejaVu Sans at the same point size) so every text
+# element that does NOT set an explicit fontsize (e.g. some tick labels)
+# grows in step with the ones below that do. Uses an ABSOLUTE value (not
+# +=) so re-running this script in the same session/kernel never compounds
+# the font size on repeated runs.
+plt.rcParams["font.size"] = 10 + 1.5  # matplotlib default (10) + bump
+
+# ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -294,7 +307,7 @@ def draw_scatter_panel(ax, sat_A, ins_A, sta_A, sat_B, ins_B, sta_B,
                    alpha=0.6, label=f"S3A N={st_A['n']}")
         ax.scatter(ins_B, sat_B, color=plain_color, marker="s", s=40,
                    alpha=0.6, label=f"S3B N={st_B['n']}")
-        ax.legend(fontsize=10, loc="upper left", framealpha=1)
+        ax.legend(fontsize=11.5, loc="upper left", framealpha=0.9)
 
     # ── axis limits ──────────────────────────────────────────────────────────
     fin = np.isfinite(ins_all) & np.isfinite(sat_all)
@@ -323,14 +336,14 @@ def draw_scatter_panel(ax, sat_A, ins_A, sta_A, sat_B, ins_B, sta_B,
         f"RMSE={s['rmse']:.2f}\n"
         f"MdSA={s['mdsa']:.1f}%",
         transform=ax.transAxes,
-        fontsize=11,
+        fontsize=12.5,
         ha="right",
         va="bottom",
     )
 
-    ax.set_xlabel(xlabel, fontsize=13)
-    ax.set_ylabel(ylabel, fontsize=13)
-    ax.tick_params(labelsize=10)
+    ax.set_xlabel(xlabel, fontsize=14.5)
+    ax.set_ylabel(ylabel, fontsize=14.5)
+    ax.tick_params(labelsize=11.5)
     ax.grid(True, alpha=0.3)
     ax.set_aspect("equal", adjustable="box")
 
@@ -369,7 +382,7 @@ satellite_handles = [
 ]
 fig.legend(
     handles=station_handles + satellite_handles,
-    fontsize=12,
+    fontsize=13.5,
     loc="lower center",
     ncol=len(unique_stations) + 2,
     bbox_to_anchor=(0.5, -0.06),
