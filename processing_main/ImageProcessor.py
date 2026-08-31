@@ -3,6 +3,7 @@ import numpy as np
 from spectral import envi
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from joblib import Parallel, delayed
 
 
 class ImageProcessor():
@@ -10,7 +11,7 @@ class ImageProcessor():
     def __init__(self, img_path, out_path, weights=None, use_previous_init=False,
                  vary={'C_0': True, 'C_x': True, 'C_y': True},
                  bounds={'C_y': (0, 0.5), 'C_0': (0, 15), 'C_x': (0, 10)},
-                 init={'C_y': 0.1, 'C_0': 4, 'C_x': 1},
+                 init={'C_y': 0.1, 'C_0': 3, 'C_x': 1},
                  output_wcs=['C_0', 'C_x', 'C_y'],
                  output_iops=["a","a_cdom","a_nap","a_phy","bb","bb_nap","bb_phy"]
                  ):
@@ -20,6 +21,87 @@ class ImageProcessor():
         
         self.results = self._process_image(img_path, out_path, weights, vary, bounds, init, output_iops, use_previous_init)
         
+    def _process_line(
+        self,
+        i,
+        cube,
+        wasi,
+        samples,
+        wavelengths,
+        vary,
+        bounds,
+        init,
+        weights,
+        output_iops,
+        use_previous_init,
+        nb_out,
+    ):
+    
+        n_scalar = len(self.output_wcs)
+        n_spec = len(wavelengths)
+    
+        row_result = np.zeros((samples, nb_out), dtype=np.float32)
+    
+        wasi_iop_LUT = {
+            "a": lambda: wasi.a,
+            "a_cdom": lambda: wasi.a_cdom,
+            "a_nap": lambda: wasi.a_nap,
+            "a_phy": lambda: wasi.a_phy,
+            "bb": lambda: wasi.bb,
+            "bb_nap": lambda: wasi.bb_nap,
+            "bb_phy": lambda: wasi.bb_phy,
+        }
+    
+        local_init = init.copy()
+    
+        for j in range(samples):
+    
+            spectrum = cube[i, j, :]
+    
+            if not np.all(np.isfinite(spectrum)) or np.all(spectrum == 0):
+                continue
+    
+            inv = wasi.invert(
+                spectrum,
+                vary=vary,
+                bounds=bounds,
+                init=local_init,
+                weights=weights,
+            )
+    
+            residuum = np.sqrt(np.mean(inv.residual ** 2))
+            params = inv.params
+    
+            row_result[j, -1] = residuum
+    
+            # Scalars
+            for k, name in enumerate(self.output_wcs):
+                row_result[j, k] = params[name].value
+                    
+            INIT_RESET_INTERVAL = 10
+
+            if use_previous_init:
+                if j % INIT_RESET_INTERVAL == 0:
+                    local_init = init.copy()
+                else:
+                    local_init = {
+                        var: params[var].value*(1 + np.random.normal(0, 0.01))
+                        for var in local_init.keys()
+                    }
+                    
+            # IOP spectra
+            offset = n_scalar
+    
+            for k, name in enumerate(output_iops):
+    
+                spectrum_iop = wasi_iop_LUT[name]()
+    
+                start = offset + k * n_spec
+                end = start + n_spec
+    
+                row_result[j, start:end] = spectrum_iop
+    
+        return i, row_result
 
     def _process_image(self, img_path, out_path, weights, vary, bounds, init, output_iops, use_previous_init):
         """
@@ -72,45 +154,33 @@ class ImageProcessor():
         # -------------------------------------------------
         # Invert every pixel
         # -------------------------------------------------
-        for i in tqdm(range(lines), desc="Processing lines"):
-            for j in range(samples):
-    
-                spectrum = cube[i, j, :]
-    
-                if not np.all(np.isfinite(spectrum)) or np.all(spectrum == 0):
-                    continue
-                
-                inv = wasi.invert(spectrum, vary=vary, bounds=bounds, init=init, weights=weights)
-                residuum = np.mean(inv.residual ** 2)
-                params = inv.params
-                results[i, j, -1] = residuum
-                
-                # Standard concentrations
-                for k, name in enumerate(self.output_wcs):
-                    results[i, j, k] = params[name].value
-                    
-                wasi_iop_LUT = {
-                    "a": wasi.a,
-                    "a_cdom": wasi.a_cdom,
-                    "a_nap": wasi.a_nap,
-                    "a_phy": wasi.a_phy,
-                    "bb": wasi.bb,
-                    "bb_nap": wasi.bb_nap,
-                    "bb_phy": wasi.bb_phy
-                }
-                    
-                # IOP values
-                iop_spectra = [v for k, v in wasi_iop_LUT.items() if k in output_iops]
-                
-                offset = n_scalar
-                
-                if use_previous_init:
-                    init = {var: params[var].value for var in init.keys()}
+        print("Starting parallel inversion...")
 
-                for k, spectrum in enumerate(iop_spectra):
-                    start = offset + k * n_spec
-                    end = start + n_spec
-                    results[i, j, start:end] = spectrum
+        results_lines = Parallel(
+            n_jobs=-1,
+            prefer="processes"
+        )(
+            delayed(self._process_line)(
+                i,
+                cube,
+                wasi,
+                samples,
+                wavelengths,
+                vary,
+                bounds,
+                init,
+                weights,
+                output_iops,
+                use_previous_init,
+                nb_out,
+            )
+            for i in tqdm(range(lines))
+        )
+        
+        # Reassemble image
+        
+        for i, row_result in results_lines:
+            results[i, :, :] = row_result
 
     
         # -------------------------------------------------

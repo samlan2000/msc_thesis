@@ -54,7 +54,7 @@ class MiniWasi():
         self.da_W_div_dT_res = resampling.resample_da_W_div_dT(wavelengths, FWHMs)
         
 
-    def forward(self, C_x = 1, C_y = 0.2, C_0 = 2, C_1 = 0, C_2 = 0, C_3 = 0, C_4 = 0, C_5 = 0, 
+    def forward(self, C_x = 1, C_mie = 0, C_y = 0.2, C_0 = 2, C_1 = 0, C_2 = 0, C_3 = 0, C_4 = 0, C_5 = 0, 
                 return_spectrum=False):
         
         ####
@@ -73,7 +73,7 @@ class MiniWasi():
 
         # NAP component
         # Normalized nap absorption coefficient
-        C_nap = C_x # + C_mie
+        C_nap = C_x + C_mie
         # WASI a_spec_nap_440nm: 0.055, manual: 0.041
         self.a_nap = C_nap * self.a_spec_nap_440nm * self.a_norm_nap
 
@@ -92,7 +92,7 @@ class MiniWasi():
 
         # NAP
         # WASI bb_nap_spec: 0.013, WASI manual: 0.0086
-        self.bb_nap = self.bb_nap_spec * C_x * np.ones(self.wavelengths.shape)
+        self.bb_nap = self.bb_nap_spec * C_x * np.ones(self.wavelengths.shape) + 0.0042 * C_mie * (self.wavelengths / 500)**-1
 
         self.bb_wc = self.bb_phy + self.bb_nap
         # Bulk backscattering
@@ -139,10 +139,11 @@ class MiniWasi():
         """
     
         # defaults
-        param_names = ['C_x', 'C_y', 'C_0', 'C_1', 'C_2', 'C_3', 'C_4', 'C_5']
+        param_names = ['C_x', 'C_mie', 'C_y', 'C_0', 'C_1', 'C_2', 'C_3', 'C_4', 'C_5']
     
         default_init = {
             'C_x': 1.0,
+            'C_mie': 0,
             'C_y': 0.1,
             'C_0': 4.0,
             'C_1': 0.0,
@@ -154,6 +155,7 @@ class MiniWasi():
     
         default_bounds = {
             'C_x': (0, 10),
+            'C_mie': (0, 10),
             'C_y': (0, 0.5),
             'C_0': (0, 15),
             'C_1': (0, 15),
@@ -189,6 +191,7 @@ class MiniWasi():
         def residual(params):
             model_Rrs = self.forward(
                 C_x=params['C_x'],
+                C_mie=params['C_mie'],
                 C_y=params['C_y'],
                 C_0=params['C_0'],
                 C_1=params['C_1'],

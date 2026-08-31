@@ -119,10 +119,19 @@ files for additional acquisition dates.
 Raw satellite and in-situ input data are not included in this repository —
 they're too large to version, and referenced by absolute paths under
 `C:\MSc_thesis_data\...` that need to be adapted per machine (see the
-EXTERNAL INPUT PATHS section of each `main_x.py`). Open-access versions of
-the input datasets are expected to be published on
-[Zenodo](https://zenodo.org/) in the near future; this README will be
-updated with a DOI link once available.
+EXTERNAL INPUT PATHS section of each `main_x.py`). Availability of the
+in-situ input data differs by chain:
+
+- **Thetis** — the processed Thetis in-situ data used by this repo
+  (`insitu/thetis_L2`: `Level2/`, `Level2_orig/`, and
+  `df_thetis_chla_cor.csv`) is openly available on Zenodo:
+  [Processed Thetis vertical-profiler data (Lake Geneva, 2018–2025) used for
+  Sentinel-3 OLCI water-quality validation](https://doi.org/10.5281/zenodo.22203433).
+- **SHL2** — the SHL2 in-situ data cannot be redistributed here under the
+  data provider's user agreement. It must be requested directly from
+  [SOERE OLA (INRAE)](https://si-ola.inrae.fr/).
+- **Campaigns** — publishing of the Eawag field campaign in-situ data is
+  underway; this README will be updated with a DOI/link once available.
 
 ## Outputs
 

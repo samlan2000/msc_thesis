@@ -7,6 +7,9 @@ __pycache__/
 outputs_L3/images_campaigns/*.bsq
 outputs_L3/images_campaigns/*.img
 outputs_L3/images_campaigns/*.hdr
+outputs_L3/images_all/*.bsq
+outputs_L3/images_all/*.img
+outputs_L3/images_all/*.hdr
 
 # OS / editor cruft
 .DS_Store
