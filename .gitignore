@@ -11,6 +11,9 @@ outputs_L3/images_all/*.bsq
 outputs_L3/images_all/*.img
 outputs_L3/images_all/*.hdr
 *.pdf
+*.docx
+~$*
+*.tmp
 
 # OS / editor cruft
 .DS_Store
