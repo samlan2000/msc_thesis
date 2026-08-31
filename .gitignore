@@ -10,6 +10,7 @@ outputs_L3/images_campaigns/*.hdr
 outputs_L3/images_all/*.bsq
 outputs_L3/images_all/*.img
 outputs_L3/images_all/*.hdr
+*.pdf
 
 # OS / editor cruft
 .DS_Store
