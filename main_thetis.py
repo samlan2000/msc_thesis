@@ -47,8 +47,9 @@ BASE_DIR = Path(__file__).resolve().parent
 PROCESSING_PRE_DIR = BASE_DIR / "processing_pre"
 PROCESSING_MAIN_DIR = BASE_DIR / "processing_main"
 
-# make processing_pre importable (used directly, not via subprocess)
+# make processing_pre / LUTs importable (used directly, not via subprocess)
 sys.path.insert(0, str(PROCESSING_PRE_DIR))
+sys.path.insert(0, str(BASE_DIR / "LUTs"))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -56,6 +57,8 @@ sys.path.insert(0, str(PROCESSING_PRE_DIR))
 # ═══════════════════════════════════════════════════════════════════════
 RUN_DOWNLOAD_AC = False
 RUN_PRE_PROCESSING = False
+RUN_UPDATE_DATE_MAP_DIR = False
+RUN_UPDATE_DATE_MAP_A_DIR = False
 RUN_INSITU_INVERSION = False 
 RUN_PROCESSING_THETIS = True
 RUN_PLOTTING_THETIS = True
@@ -73,17 +76,21 @@ SENCAST_DIR = r"C:\Users\samue\sencast"
 THETIS_DIAS_TEMP_DIR = r"C:\MSc_thesis_data\satellite\thetis_combined\temp"
 THETIS_SENCAST_PARAMS_DIR = r"C:\Users\samue\sencast\parameters\thetis"
 
-# -- pre_processing: campaign .nc -> .bsq conversion (was batch_bsq_conversion.py) --
+# -- pre_processing: .nc -> .bsq conversion (was batch_bsq_conversion.py) --
 # NOTE: the raw .nc products themselves live on an external hard drive (several
-# TB, not present under C:\MSc_thesis_data) — path kept as-is, pointing at the
-# location they'd be mounted/copied to.
-CAMPAIGN_NC_INPUT_DIR = r"C:\MSc_thesis_data\satellite\campaigns\nc\output_data"
-CAMPAIGN_BSQ_OUTPUT_DIR = r"C:\MSc_thesis_data\satellite\campaigns\bsq_restricted"
-CAMPAIGN_BSQ_BANDS = ["Oa3", "Oa4", "Oa5", "Oa6", "Oa8"]
+# TB, not present under C:\MSc_thesis_data)
+NC_INPUT_DIR = r"D:\thetis\output_data"
+BSQ_OUTPUT_DIR = r"C:\MSc_thesis_data\satellite\thetis_combined\bsq"
+BSQ_BANDS = ['Oa1', 'Oa2', 'Oa3', 'Oa4', 'Oa5', 'Oa6', 'Oa7', 'Oa8', 'Oa10', 'Oa11', 'Oa12']
+
+# -- update_date_map_dir: overwrite the directory DATE_TO_FILE_MAP entries
+# point to (filenames are kept, only the directory is swapped) --
+NEW_DATE_MAP_DATA_DIR = r"C:\MSc_thesis_data\insitu\thetis\thetis-multi-instrument-profiler\data\Level2_orig"
+NEW_DATE_MAP_A_DATA_DIR = r"C:\MSc_thesis_data\insitu\thetis\thetis-multi-instrument-profiler\data\Level2"
 
 # -- pre_processing: filter the combined Thetis .bsq archive down to valid images --
 THETIS_BSQ_COMBINED_DIR = r"C:\MSc_thesis_data\satellite\thetis_combined\bsq"
-THETIS_BSQ_VALID_DIR = r"C:\MSc_thesis_data\satellite\thetis_valid"
+THETIS_BSQ_VALID_DIR = r"C:\MSc_thesis_data\satellite\thetis_valid\bsq"
 
 # -- insitu_inversion / processing_thetis: raw satellite images to process --
 # (same folder as THETIS_BSQ_VALID_DIR above — the output of pre_processing)
@@ -134,11 +141,11 @@ def run_pre_processing():
     # -- 1a. campaign .nc -> band-restricted .bsq (formerly batch_bsq_conversion.py) --
     from bsqConverterPolymer import convert_polymer_batch
 
-    os.makedirs(CAMPAIGN_BSQ_OUTPUT_DIR, exist_ok=True)
+    os.makedirs(BSQ_OUTPUT_DIR, exist_ok=True)
     convert_polymer_batch(
-        CAMPAIGN_NC_INPUT_DIR,
-        CAMPAIGN_BSQ_OUTPUT_DIR,
-        bands=CAMPAIGN_BSQ_BANDS,
+        NC_INPUT_DIR,
+        BSQ_OUTPUT_DIR,
+        bands=BSQ_BANDS,
     )
 
     # -- 1b. filter combined Thetis .bsq archive down to valid images --
@@ -146,6 +153,31 @@ def run_pre_processing():
     env["THETIS_BSQ_COMBINED_DIR"] = THETIS_BSQ_COMBINED_DIR
     env["THETIS_BSQ_VALID_DIR"] = THETIS_BSQ_VALID_DIR
     _run_script(PROCESSING_PRE_DIR / "valid_images_thetis.py", env)
+
+
+def _update_date_map_dir(map_file, new_data_dir, label):
+    """Overwrite the directory a date_to_file_map*.pkl LUT's entries point
+    to, keeping each entry's filename unchanged (see
+    LUTs/change_dir_in_LUT.py). Useful when the in-situ Thetis data has
+    been moved/copied to a new location and the LUT still references the
+    old one."""
+    print("\n" + "=" * 80)
+    print(f"STAGE — update_date_map_dir ({label})")
+    print("=" * 80)
+
+    from change_dir_in_LUT import change_dir_in_lut
+
+    change_dir_in_lut(map_file, new_data_dir)
+
+
+def run_update_date_map_dir():
+    """Overwrite the directory DATE_TO_FILE_MAP's entries point to."""
+    _update_date_map_dir(DATE_TO_FILE_MAP, NEW_DATE_MAP_DATA_DIR, "date_to_file_map.pkl")
+
+
+def run_update_date_map_a_dir():
+    """Overwrite the directory DATE_TO_FILE_MAP_A's entries point to."""
+    _update_date_map_dir(DATE_TO_FILE_MAP_A, NEW_DATE_MAP_A_DATA_DIR, "date_to_file_map_a.pkl")
 
 
 def run_insitu_inversion():
@@ -212,6 +244,10 @@ if __name__ == "__main__":
         run_download_ac()
     if RUN_PRE_PROCESSING:
         run_pre_processing()
+    if RUN_UPDATE_DATE_MAP_DIR:
+        run_update_date_map_dir()
+    if RUN_UPDATE_DATE_MAP_A_DIR:
+        run_update_date_map_a_dir()
     if RUN_INSITU_INVERSION:
         run_insitu_inversion()
     if RUN_PROCESSING_THETIS:

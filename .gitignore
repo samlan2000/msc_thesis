@@ -15,6 +15,9 @@ outputs_L3/images_all/*.hdr
 ~$*
 *.tmp
 
+# Extras (side scripts / animations, not part of the processing chain)
+extras/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
