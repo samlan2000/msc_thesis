@@ -121,7 +121,7 @@ they're too large to version, and referenced by absolute paths under
 `C:\MSc_thesis_data\...` that need to be adapted per machine (see the
 EXTERNAL INPUT PATHS section of each `main_x.py`).
 
-The satellite-derived data (raw/POLYMER-corrected Sentinel-3 OLCI imagery and MiniWASI inversion outputs) for all three chains is openly available on Zenodo: [Sentinel-3 OLCI satellite data and MiniWASI water constituent retrievals for Lake Geneva (2016–2025)](https://doi.org/10.5281/zenodo.22250805). Availability of the in situ input data differs by chain:
+The band-restricted Sentinel-3 OLCI extracts (`.bsq`) and MiniWASI inversion outputs for all three chains are openly available on Zenodo: [Sentinel-3 OLCI satellite data and MiniWASI water constituent retrievals for Lake Geneva (2016–2025)](https://doi.org/10.5281/zenodo.22250805) — raw and atmospherically-corrected (POLYMER) full-scene products are not included. Availability of the in situ input data differs by chain:
 
 - **Thetis** — the processed Thetis in situ data used by this repo
   (`insitu/thetis_L2`: `Level2/`, `Level2_orig/`, and
