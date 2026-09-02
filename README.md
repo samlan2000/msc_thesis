@@ -5,8 +5,8 @@ Sentinel-3 OLCI, covering three independent data sources / validation
 targets:
 
 - **Thetis** — long-term automated profiler platform on Lake Geneva.
-- **Campaigns** — multi-station field campaigns (HPLC Chl-a, TSM, CDOM).
-- **SHL2** — fixed station, Chl-a and phytoplankton community match-ups.
+- **Campaigns** — multi-station field campaigns (HPLC CHL, TSM, CDOM).
+- **SHL2** — fixed station, CHL and phytoplankton community match-ups.
 
 Each data source has its own orchestrator script, `main_thetis.py`,
 `main_campaigns.py`, and `main_shl2.py`, at the repo root. Everything else
@@ -27,7 +27,7 @@ MSc_thesis_samuel/
 │   ├── bsqConverterPolymer.py .nc -> band-restricted .bsq conversion
 │   ├── valid_images_thetis.py filters the combined Thetis .bsq archive
 │   ├── matchups/               in-situ/satellite matchup finder scripts + csvs
-│   ├── chl_npq_correction/     NPQ correction notebook for Thetis Chl-a
+│   ├── chl_npq_correction/     NPQ correction notebook for Thetis CHL
 │   └── parameters/             pre-generated sencast .ini files (see below)
 │       ├── campaigns/, shl2/, thetis/   one .ini per acquisition date
 │       ├── generate_ini.py     generates new .ini files from a date list
