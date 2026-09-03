@@ -1,22 +1,56 @@
-name: geo
+# Conda environment for MSc_thesis_samuel.
+#
+# Create with:   conda env create -f environment.yml
+# Update with:   conda env update -f environment.yml --prune
+#
+# Covers the core processing chains (main_thetis.py / main_campaigns.py /
+# main_shl2.py and everything under processing_main/ and processing_pre/).
+# A few packages are only needed for optional/utility scripts, not the
+# main chains themselves -- see the comments below and the README's
+# "Requirements" section.
+name: msc_thesis_samuel
 channels:
   - conda-forge
+  - defaults
 dependencies:
   - python=3.10
+
+  # --- core scientific stack (used throughout processing_main/, processing_pre/) ---
   - numpy
   - pandas
   - matplotlib
   - scipy
   - scikit-learn
   - statsmodels
+
+  # --- geospatial / satellite I/O ---
   - xarray
-  - netCDF4
+  - netcdf4
+  - h5netcdf
   - rasterio
-  - spectral
+  - spectral      # `spectral` (Spectral Python) -- ENVI .bsq read/write, band resampling
+
+  # --- WASI inversion (processing_main/MiniWASIsafe.py, ImageProcessor.py) ---
+  - lmfit         # WASI bio-optical model fitting
+  - joblib        # parallel whole-image (per-pixel-cube) inversion
+
+  # --- misc ---
   - tqdm
-  - lmfit
-  - jupyter
-  - ipykernel
+  - pyyaml        # only needed for processing_pre/absorption_thetis/ (external
+                   # LéXPLORE Thetis profiler reprocessing pipeline, see its INFO.txt)
+
+  # --- optional: to open processing_pre/chl_npq_correction/Thetis_chl_npq_corr.ipynb ---
+  - notebook
+
   - pip
   - pip:
+      # only needed for processing_pre/matchups/matchup_finder_thetis.py
+      # (Sentinel-3 cloud fraction via the Copernicus Data Space openEO API);
+      # not required to run main_thetis.py / main_campaigns.py / main_shl2.py
+      # against the already-generated matchups_*.csv files.
       - openeo
+
+# Not covered here (installed/managed separately, see README):
+#   - Docker Desktop + a local sencast install, only needed for the
+#     `download_ac` stage (run_sencast.py). sencast has its own
+#     environment/dependencies -- see https://sencast.readthedocs.io/

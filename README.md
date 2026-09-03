@@ -4,8 +4,8 @@ Processing chain for the MSc thesis work on lake water-quality retrieval from
 Sentinel-3 OLCI, covering three independent data sources / validation
 targets:
 
-- **Thetis** — long-term automated profiler platform on Lake Geneva.
-- **Campaigns** — multi-station field campaigns (HPLC CHL, TSM, CDOM).
+- **Thetis** — long-term automated profiler on Lake Geneva.
+- **Campaigns** — multi-station field campaigns (HPLC CHL, TSM).
 - **SHL2** — fixed station, CHL and phytoplankton community match-ups.
 
 Each data source has its own orchestrator script, `main_thetis.py`,
@@ -21,6 +21,7 @@ MSc_thesis_samuel/
 ├── main_thetis.py            orchestrator: Thetis chain (5 stages)
 ├── main_campaigns.py         orchestrator: campaigns chain (4 stages)
 ├── main_shl2.py               orchestrator: SHL2 chain (3 stages)
+├── environment.yml            conda environment (see Requirements below)
 │
 ├── processing_pre/           pre-processing stage code
 │   ├── run_sencast.py         driver for the download_ac (sencast/Docker) stage
@@ -59,12 +60,28 @@ MSc_thesis_samuel/
 ## Requirements
 
 - Python 3.10 with `numpy`, `pandas`, `matplotlib`, `scipy`, `scikit-learn`,
-  `statsmodels`, `xarray` (including dependencies `netcdf4` and `h5netcdf`), `rasterio`, `spectral`, `tqdm`.
+  `statsmodels`, `xarray` (including dependencies `netcdf4` and `h5netcdf`), `rasterio`,
+  `spectral`, `tqdm`, `lmfit` (WASI model fitting in `processing_main/MiniWASIsafe.py`),
+  and `joblib` (parallel whole-image inversion in `processing_main/ImageProcessor.py`).
+  A ready-to-use `environment.yml` is provided at the repo root
+  (`conda env create -f environment.yml`).
+- `openeo` — only needed to (re-)run
+  `processing_pre/matchups/matchup_finder_thetis.py`, which queries Sentinel-3
+  cloud fraction via the Copernicus Data Space openEO API. The chains
+  themselves consume the already-generated `matchups_thetis.csv` /
+  `matchups_shl2.csv` and don't need it.
+- `PyYAML` (`yaml`) — only needed to (re-)run the Thetis L2
+  hyperspectral-absorption reprocessing scripts under
+  `processing_pre/absorption_thetis/` (an external LéXPLORE profiler
+  pipeline, see its `INFO.txt`).
+- Jupyter (e.g. `jupyter`/`jupyterlab`) — only needed to open
+  `processing_pre/chl_npq_correction/Thetis_chl_npq_corr.ipynb`.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) — only
   needed for the `download_ac` stage (see below). All other stages run with
   plain Python and no Docker dependency.
 - A local [sencast](https://sencast.readthedocs.io/en/latest/) installation
   — only needed for the `download_ac` stage.
+- Additional dependencies are needed to run sencast!
 
 ## Running a chain
 
