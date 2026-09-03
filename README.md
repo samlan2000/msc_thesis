@@ -26,6 +26,9 @@ MSc_thesis_samuel/
 │   ├── run_sencast.py         driver for the download_ac (sencast/Docker) stage
 │   ├── bsqConverterPolymer.py .nc -> band-restricted .bsq conversion
 │   ├── valid_images_thetis.py filters the combined Thetis .bsq archive
+│   ├── absorption_thetis/      Thetis L2 re-processing scripts to add hyperspectral
+│   │                           absorption (external LéXPLORE profiler pipeline,
+│   │                           see absorption_thetis/INFO.txt)
 │   ├── matchups/               in situ/satellite matchup finder scripts + csvs
 │   ├── chl_npq_correction/     NPQ correction notebook for Thetis CHL
 │   └── parameters/             pre-generated sencast .ini files (see below)
@@ -41,6 +44,10 @@ MSc_thesis_samuel/
 │   ├── processing_thetis.py, plotting_thetis.py, hyperspectral_rrs_inversion.py
 │   ├── processing_shl2.py
 │   ├── processing_campaigns.py, image_processor_campaigns.py
+│   ├── image_processor_all.py  whole-cube inversion for every matched image
+│   │                           across all three chains (see Outputs below)
+│   ├── count_used_images.py    counts distinct satellite images actually used
+│   │                           in a match-up, across all three chains
 │   ├── resampling.py, rrs_qa.py
 │   └── data/                   WASI model lookup tables / spectral libraries
 │
@@ -52,7 +59,7 @@ MSc_thesis_samuel/
 ## Requirements
 
 - Python 3.10 with `numpy`, `pandas`, `matplotlib`, `scipy`, `scikit-learn`,
-  `statsmodels`, `xarray`, `rasterio`, `spectral`, `tqdm`.
+  `statsmodels`, `xarray` (including dependencies `netcdf4` and `h5netcdf`), `rasterio`, `spectral`, `tqdm`.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) — only
   needed for the `download_ac` stage (see below). All other stages run with
   plain Python and no Docker dependency.
@@ -116,12 +123,12 @@ files for additional acquisition dates.
 
 ## Data availability
 
-Raw satellite and in situ input data are not included in this repository —
-they're too large to version, and referenced by absolute paths under
+Satellite and in situ input data are not included in this repository since
+they are simply too large. They are referenced by absolute paths under
 `C:\MSc_thesis_data\...` that need to be adapted per machine (see the
 EXTERNAL INPUT PATHS section of each `main_x.py`).
 
-The band-restricted Sentinel-3 OLCI extracts (`.bsq`) and MiniWASI inversion outputs for all three chains are openly available on Zenodo: [Sentinel-3 OLCI satellite data and MiniWASI water constituent retrievals for Lake Geneva (2016–2025)](https://doi.org/10.5281/zenodo.22250805) — raw and atmospherically-corrected (POLYMER) full-scene products are not included. Availability of the in situ input data differs by chain:
+WASI-compatible POLXMER Sentinel-3 OLCI extracts (`.bsq`) and MiniWASI inversion outputs for all three chains are openly available on Zenodo: [Sentinel-3 OLCI satellite data and MiniWASI water constituent retrievals for Lake Geneva (2016–2025)](https://doi.org/10.5281/zenodo.22250805). Raw atmospherically-corrected (POLYMER) full-scene products are not included. Availability of the in situ input data differs by chain:
 
 - **Thetis** — the processed Thetis in situ data used by this repo
   (`insitu/thetis_L2`: `Level2/`, `Level2_orig/`, and
@@ -155,10 +162,10 @@ using the `image_processor_all.py` script or downloaded from the satellite-data 
 
 It is recommended to download the satellite images from the [satellite-data Zenodo record](https://doi.org/10.5281/zenodo.22250805) and the Thetis in situ data from the [processed Thetis vertical-profiler Zenodo record](https://doi.org/10.5281/zenodo.22203433). To reproduce the Thetis chain, main_thetis.py can then be run in its 
 current form with a few adjustments:
-- Setting `THETIS_BSQ_VALID_DIR` to the path of the downloaded `thetis_valid` dir
+- Set `THETIS_BSQ_VALID_DIR` to the path of the downloaded `thetis_valid/bsq` dir
 - Set `RUN_UPDATE_DATE_MAP_DIR = True` and point `NEW_DATE_MAP_DATA_DIR` at the 
   folder containing the Thetis netcdf files (downloaded `thetis_L2/Level2_orig` dir)
 - Also set `RUN_UPDATE_DATE_MAP_DIR = True` and point `NEW_DATE_MAP_A_DATA_DIR`
   at the folder containing the modified Thetis netcdf files with hyperspectral
   absorption (downloaded `thetis_L2/Level2` dir)
-- Set `INSITU_CHLA_CSV` to the downloaded `thetis_L2/df_thetis_chla_cor.csv` .csv
+- Set `INSITU_CHLA_CSV` to the downloaded `thetis_L2/df_thetis_chla_cor.csv`
